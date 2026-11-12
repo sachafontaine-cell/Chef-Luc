@@ -8,7 +8,8 @@ const { applyPatch, changed, current, mergePatch, saveVersion, useVersion, versi
 const { askBody, parseReply, readJson, recipeText, swapQuestion, systemText } = await import('./luc')
 const { ingredientsIn } = await import('./ingredients')
 const { makeBackup, readBackup, restoreBackup } = await import('./backup')
-const { generate, withModels, LucError } = await import('./gemini')
+const { generate, withModels, LucError, RETRY, modelOrder } = await import('./gemini')
+RETRY.pauseMs = 1
 const { recipe } = await import('./recipes')
 const { addRule } = await import('../screens/luc')
 const { factor, familyPortions } = await import('./portions')
@@ -154,6 +155,27 @@ describe('Gemini calls', () => {
     const r = await withModels('k', undefined, (m) => generate('k', m, {}))
     expect(used).toEqual(['gemini-3.8-flash', 'gemini-3.6-flash'])
     expect(r.model).toBe('gemini-3.6-flash')
+  })
+  it('tries every model, then once more after a pause, before giving up with a clear message', async () => {
+    saved.delete('chef-luc:models')
+    const used: string[] = []
+    let calls = 0
+    vi.stubGlobal('fetch', async (u: string) => {
+      if (u.includes('/models?')) return new Response(JSON.stringify({ models: ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.9-flash-preview'].map((n) => ({ name: `models/${n}`, supportedGenerationMethods: ['generateContent'] })) }))
+      const m = u.match(/models\/([^:]+):/)![1]; used.push(m); calls++
+      return new Response('{"error":{"message":"This model is currently experiencing high demand."}}', { status: 503 })
+    })
+    await expect(withModels('k', 'gemini-3.8-flash', (m) => generate('k', m, {}))).rejects.toThrow(/surchargé en ce moment \(5 modèles essayés\)/)
+    expect(used).toEqual(['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.9-flash-preview', 'gemini-3.8-flash'])
+  })
+  it('starts with the model that answered last, and skips busy ones for a while', async () => {
+    saved.delete('chef-luc:models')
+    vi.stubGlobal('fetch', async (u: string) => {
+      if (u.includes('/models?')) return new Response(JSON.stringify({ models: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'].map((n) => ({ name: `models/${n}`, supportedGenerationMethods: ['generateContent'] })) }))
+      return u.includes('3.8') ? new Response('{}', { status: 503 }) : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }))
+    })
+    expect((await withModels('k', 'gemini-3.8-flash', (m) => generate('k', m, {}))).model).toBe('gemini-3.5-flash-lite')
+    expect(modelOrder('gemini-3.8-flash', ['gemini-3.8-flash', 'gemini-3.5-flash-lite'])).toEqual(['gemini-3.5-flash-lite', 'gemini-3.8-flash'])
   })
   it('stops at once on a refused key, with a French message', async () => {
     vi.stubGlobal('fetch', async (u: string) => u.includes('/models?') ? new Response('{}', { status: 400 }) : new Response('{"error":{"message":"API key not valid."}}', { status: 400 }))

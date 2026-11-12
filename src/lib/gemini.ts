@@ -34,7 +34,8 @@ export async function generate(key: string, model: string, body: Record<string, 
       if (r.status === 400 && /api key/i.test(msg)) throw new LucError('Clé Gemini refusée. Vérifiez-la dans Réglages.', 400)
       if (r.status === 403) throw new LucError('Clé Gemini refusée (restriction ou API non activée). Vérifiez-la dans Réglages.', 403)
       if (r.status === 404) throw new LucError(`Modèle ${model} indisponible pour cette clé.`, 404, true)
-      throw new LucError(`Gemini : erreur ${r.status}${short ? ` (${short})` : ''}`, r.status, r.status >= 500)
+      if (r.status >= 500) throw new LucError('Gemini est surchargé en ce moment.', r.status, true)
+      throw new LucError(`Gemini : erreur ${r.status}${short ? ` (${short})` : ''}`, r.status)
     }
     return await r.json()
   } catch (e) {
@@ -50,7 +51,7 @@ export function answerText(j: any): string {
   return (j?.candidates?.[0]?.content?.parts ?? []).filter((p: any) => typeof p.text === 'string' && !p.thought).map((p: any) => p.text).join('')
 }
 
-/** Flash models this key can use, newest first (stable before "latest", "lite" last). */
+/** Flash models this key can use, best first: stable, then "latest", "lite", then previews. */
 export async function flashModels(key: string): Promise<string[]> {
   let r: Response
   try { r = await fetch(`${API}/models?pageSize=200&key=${encodeURIComponent(key)}`) } catch { throw new LucError('Pas de connexion internet.') }
@@ -59,23 +60,55 @@ export async function flashModels(key: string): Promise<string[]> {
   const j = (await r.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] }
   const names = (j.models ?? []).filter((m) => m.supportedGenerationMethods?.includes('generateContent')).map((m) => m.name.replace(/^models\//, ''))
   const v = (n: string) => parseFloat(n.slice(7)) || 0
-  const stable = names.filter((n) => /^gemini-[\d.]+-flash$/.test(n)).sort((a, b) => v(b) - v(a))
-  const lite = names.filter((n) => /^gemini-[\d.]+-flash-lite$/.test(n)).sort((a, b) => v(b) - v(a))
-  return [...stable.slice(0, 3), ...(names.includes('gemini-flash-latest') ? ['gemini-flash-latest'] : []), ...lite.slice(0, 1)]
+  const pick = (re: RegExp) => names.filter((n) => re.test(n)).sort((a, b) => v(b) - v(a))
+  return [...new Set([
+    ...pick(/^gemini-[\d.]+-flash$/).slice(0, 3),
+    ...names.filter((n) => n === 'gemini-flash-latest'),
+    ...pick(/^gemini-[\d.]+-flash-lite$/).slice(0, 2),
+    ...names.filter((n) => n === 'gemini-flash-lite-latest'),
+    ...pick(/^gemini-[\d.]+-flash(-lite)?-preview(-[\d-]+)?$/).slice(0, 2),
+  ])]
 }
 
-/** One call, trying up to three models when one is busy. Returns the model that answered. */
+// ---- Model health. The free tier often overloads one model ("high demand") while others answer.
+// A busy model is skipped for 15 minutes; the one that last answered is tried first.
+const HEALTH = 'chef-luc:models'
+interface Health { busy: Record<string, number>; good?: string }
+const readHealth = (): Health => { try { return { busy: {}, ...JSON.parse(localStorage.getItem(HEALTH) ?? '{}') } } catch { return { busy: {} } } }
+const writeHealth = (h: Health) => { try { localStorage.setItem(HEALTH, JSON.stringify(h)) } catch { /* no storage */ } }
+const markBusy = (m: string, now: number) => { const h = readHealth(); h.busy[m] = now + 15 * 60000; if (h.good === m) h.good = undefined; writeHealth(h) }
+const markGood = (m: string) => { const h = readHealth(); delete h.busy[m]; h.good = m; writeHealth(h) }
+
+/** Models to try: the one that last worked, the saved one, the others; busy ones last. */
+export function modelOrder(preferred: string | undefined, available: string[], now = Date.now()): string[] {
+  const h = readHealth()
+  const pool = [...new Set([h.good, preferred, ...available].filter((m): m is string => !!m && (!available.length || available.includes(m) || m === preferred)))]
+  const busy = (m: string) => (h.busy[m] ?? 0) > now
+  return [...pool.filter((m) => !busy(m)), ...pool.filter(busy).sort((a, b) => h.busy[a] - h.busy[b])]
+}
+
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms))
+/** Tunable for tests. */
+export const RETRY = { pauseMs: 2500, maxModels: 6 }
+
+/** One call, moving to the next model while one is busy. Returns the model that answered. */
 export async function withModels<T>(key: string, preferred: string | undefined, run: (model: string) => Promise<T>): Promise<{ out: T; model: string }> {
-  let order: string[] = preferred ? [preferred] : []
-  try { order = [...new Set([...order, ...(await flashModels(key))])] } catch (e) { if (!order.length) throw e }
+  let available: string[] = []
+  try { available = await flashModels(key) } catch (e) { if (!preferred) throw e }
+  const order = modelOrder(preferred, available).slice(0, RETRY.maxModels)
   if (!order.length) throw new LucError('Aucun modèle Gemini Flash disponible pour cette clé.')
   let last: unknown
-  for (const model of order.slice(0, 3)) {
-    try { return { out: await run(model), model } } catch (e) {
+  // Every model once; if all were busy, one more try of the first after a short pause.
+  for (const [i, model] of [...order, order[0]].entries()) {
+    if (i === order.length) await pause(RETRY.pauseMs)
+    try { const out = await run(model); markGood(model); return { out, model } } catch (e) {
       last = e
       // Busy, slow, out of free quota or missing: the next model may answer. Anything else stops here.
       if (!(e instanceof LucError && e.retry)) throw e
+      markBusy(model, Date.now())
     }
   }
-  throw last
+  const e = last as LucError
+  if ([429, 500, 502, 503, 504].includes(e.status)) throw new LucError(`Gemini est surchargé en ce moment (${order.length} modèle${order.length > 1 ? 's' : ''} essayé${order.length > 1 ? 's' : ''}). Réessayez dans une minute.`, e.status, true)
+  throw e
 }
