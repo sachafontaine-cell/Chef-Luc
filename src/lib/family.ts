@@ -52,6 +52,11 @@ const values = (facets: Facets, pick: (f: Facet) => string[]) => {
   Object.values(facets).forEach((f) => pick(f).forEach((v) => count.set(v, (count.get(v) || 0) + 1)))
   return [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map((x) => x[0])
 }
-export const proteins = (f: Facets) => values(f, (x) => (x.prot ? [x.prot] : []))
+// Same order as the Control Center's dish picker.
+const PROTS = ['Poulet', 'Bœuf', 'Porc', 'Agneau', 'Dinde', 'Poisson', 'Sans viande', 'Autre']
+export const proteins = (f: Facets) => {
+  const found = values(f, (x) => (x.prot ? [x.prot] : []))
+  return [...PROTS.filter((p) => found.includes(p)), ...found.filter((p) => !PROTS.includes(p))]
+}
 export const cuisines = (f: Facets) => values(f, (x) => (x.cui ? [x.cui] : []))
 export const styles = (f: Facets) => values(f, (x) => x.style || [])

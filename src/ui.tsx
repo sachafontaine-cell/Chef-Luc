@@ -17,6 +17,7 @@ export const Icon = {
   sun: () => svg(<><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3L7 7M17 17l1.7 1.7M5.3 18.7L7 17M17 7l1.7-1.7" /></>),
   x: () => svg(<path d="M6 6l12 12M18 6L6 18" />),
   people: () => svg(<><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17.5" cy="9" r="2.4" /><path d="M16.5 14.2c2.6.3 4.5 2.5 4.5 5.3" /></>),
+  refresh: () => svg(<><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" /><path d="M19.5 4.5v4h-4" /></>),
   sink: () => svg(<><path d="M3 13h18v2a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z" /><path d="M12 13V6a2.5 2.5 0 0 1 5 0v1" /></>),
 }
 
