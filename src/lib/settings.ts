@@ -8,7 +8,10 @@ export interface Settings {
   family: Member[]
   tools: string[]
   pantry: string[]
+  /** Store names, in shopping order. They are the names of the Cozi shopping lists. */
   stores: string[]
+  /** The store that gets specialty items (tahini, fish sauce…). */
+  specialty?: string
   geminiKey?: string
   geminiModel?: string
 }

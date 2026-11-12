@@ -2,7 +2,7 @@
 // merged shopping list, sent to Cozi in one tap (or copied / shared).
 import { useEffect, useState } from 'preact/hooks'
 import { Icon, Sheet } from '../ui'
-import { comingDinners, family, familyAction, familyKey, refreshFamily, sentFor, type Dinner } from '../lib/family'
+import { comingDinners, coziListNames, family, familyAction, familyKey, missingStores, refreshFamily, sentFor, type Dinner } from '../lib/family'
 import { emptyQuery, fold, pad, RECIPES, recipe as findRecipe, search, type Recipe } from '../lib/recipes'
 import { current, versions } from '../lib/versions'
 import { factor } from '../lib/portions'
@@ -62,7 +62,7 @@ export function Shop() {
   const kid = kidShare(cfg)
   const chosen = [...rows.filter((x) => x.on).map((x) => x.r!), ...extras]
   const planned = chosen.map((r) => { const cur = current(r); return { recipe: cur, factor: factor(r, portionsFor(r), kid) } })
-  const list = buildList(planned, cfg.pantry, cfg.stores, sh.storeFor)
+  const list = buildList(planned, cfg.pantry, cfg.stores, sh.storeFor, cfg.specialty)
   const toBuy = [...list.items.filter((it) => !sh.have.includes(it.key)), ...list.pantry.filter((it) => sh.need.includes(it.key))]
   const both = shared(list)
   const prepKey = chosen.map((r) => r.number).sort((a, b) => a - b).join(',')
@@ -86,6 +86,11 @@ export function Shop() {
 
   const doSend = async () => {
     setSend({ s: 'busy' })
+    // Each store is a Cozi list: check the names still match before adding anything.
+    const lists = await coziListNames()
+    const used = [...new Set(toBuy.map((it) => it.store))]
+    const missing = lists ? missingStores(used, lists) : []
+    if (missing.length) { setSend({ s: 'error', msg: `Pas de liste Cozi nommée ${missing.map((m) => `« ${m} »`).join(', ')}. Réglages → Magasins pour choisir parmi vos listes Cozi.` }); return }
     const groups = cfg.stores.map((st) => ({ st, items: toBuy.filter((it) => it.store === st).map(showItem) })).filter((g) => g.items.length)
     const other = toBuy.filter((it) => !cfg.stores.includes(it.store)).map(showItem)
     if (other.length) groups.push({ st: cfg.stores[0], items: other })
