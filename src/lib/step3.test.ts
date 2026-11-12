@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 
 const saved = new Map<string, string>()
 ;(globalThis as any).localStorage = { getItem: (k: string) => saved.get(k) ?? null, setItem: (k: string, v: string) => { saved.set(k, v) }, removeItem: (k: string) => { saved.delete(k) } }
-const { buildList, defaultStore, inPantry, itemKey, listText, readAmount, shared, showAmount, showItem } = await import('./shopping')
-const { comingDinners, fromState, sentFor } = await import('./family')
+const { buildList, defaultStore, specialtyStore, inPantry, itemKey, listText, readAmount, shared, showAmount, showItem } = await import('./shopping')
+const { comingDinners, fromState, missingStores, sentFor } = await import('./family')
 const { prepBody, parsePrep } = await import('./luc')
 const { DEFAULT_PANTRY, DEFAULT_STORES, settings } = await import('./settings')
 const { recipe } = await import('./recipes')
@@ -42,6 +42,15 @@ describe('pantry and stores', () => {
     expect(inPantry(itemKey('Sesame oil'), DEFAULT_PANTRY)).toBe(false)
     expect(inPantry(itemKey('Red pepper'), DEFAULT_PANTRY)).toBe(false)
     expect(inPantry(itemKey('Chicken thighs'), DEFAULT_PANTRY)).toBe(false)
+  })
+  it('uses the specialty store chosen in Réglages', () => {
+    expect(specialtyStore(['Aldi', 'Costco', 'Asian market'], 'Costco')).toBe('Costco')
+    expect(specialtyStore(['Aldi', 'Costco', 'Asian market'], 'Gone')).toBe('Asian market')
+    expect(defaultStore('Tahini', ['Aldi', 'Costco'], 'Costco')).toBe('Costco')
+  })
+  it('spots store names that are not Cozi lists', () => {
+    expect(missingStores(['Aldi', 'Costco', 'Balboa/99Ranch/TJ'], ['Aldi', 'Costco', 'Balboa / 99 Ranch'])).toEqual(['Balboa/99Ranch/TJ'])
+    expect(missingStores(['Aldi'], ['Aldi', 'Target'])).toEqual([])
   })
   it('sends specialty items to the specialty store, the rest to the first store', () => {
     expect(defaultStore('Tahini', DEFAULT_STORES)).toBe('Balboa/99Ranch/TJ')

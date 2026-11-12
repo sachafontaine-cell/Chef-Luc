@@ -1,10 +1,11 @@
 // Réglages: the one place for rules, family, tools, pantry, stores, the Gemini key and backups.
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { Icon, Sheet } from '../ui'
 import { age, DEFAULT_RULES, kidShare, lines, settings, type Member, type Settings as S } from '../lib/settings'
-import { answerText, flashModels, generate, LucError } from '../lib/gemini'
+import { answerText, flashModels, generate, LucError, withModels } from '../lib/gemini'
 import { backupName, makeBackup, readBackup, restoreBackup, type Backup } from '../lib/backup'
-import { familyKey } from '../lib/family'
+import { coziListNames, familyKey, missingStores } from '../lib/family'
+import { specialtyStore } from '../lib/shopping'
 import { versions } from '../lib/versions'
 import { applyUpdate, checkForUpdate } from '../lib/update'
 
@@ -61,55 +62,109 @@ function FamilySheet({ onClose }: { onClose: () => void }) {
 }
 
 function StoresSheet({ onClose }: { onClose: () => void }) {
-  const [list, setList] = useState(settings.get().stores)
+  const cfg = settings.get()
+  const [list, setList] = useState(cfg.stores)
+  const [special, setSpecial] = useState(specialtyStore(cfg.stores, cfg.specialty))
+  const [cozi, setCozi] = useState<string[] | null | undefined>(undefined)
+  // The stores are your Cozi shopping lists: read their exact names, keep your order.
+  useEffect(() => {
+    coziListNames().then((names) => {
+      setCozi(names)
+      if (names) setList((l) => [...l.filter((x) => names.includes(x)), ...names.filter((n) => !l.includes(n))])
+    })
+  }, [])
   const move = (i: number, d: number) => { const l = [...list]; [l[i], l[i + d]] = [l[i + d], l[i]]; setList(l) }
+  const missing = cozi ? missingStores(cfg.stores, cozi) : []
   return (
-    <Sheet title="Ordre des magasins" onClose={onClose} foot={<>
+    <Sheet title="Magasins" onClose={onClose} foot={<>
       <button class="btn btn-secondary grow press" onClick={onClose}>Annuler</button>
-      <button class="btn btn-primary grow press" onClick={() => { settings.set({ ...settings.get(), stores: list }); onClose() }}>Enregistrer</button>
+      <button class="btn btn-primary grow press" disabled={!list.length} onClick={() => { settings.set({ ...settings.get(), stores: list, specialty: special }); onClose() }}>Enregistrer</button>
     </>}>
-      <div class="muted">La liste de courses suit cet ordre. Les noms correspondent à vos listes Cozi.</div>
+      {cozi === undefined ? <div class="row muted"><span class="spinner" />Lecture de vos listes Cozi…</div>
+        : cozi ? <div class="muted">Ce sont vos listes de courses Cozi, avec leurs noms exacts. Renommer une liste dans Cozi la met à jour ici. L'ordre est celui de la liste de courses.</div>
+        : <div class="answer err">Impossible de lire vos listes Cozi (lien famille absent, hors ligne, ou script Google pas à jour). Les noms ci-dessous doivent être exactement ceux de vos listes Cozi.</div>}
+      {missing.length > 0 && <div class="answer">Plus dans Cozi : {missing.join(', ')}. Enregistrez pour les retirer.</div>}
       <div class="card">{list.map((st, i) => (
         <div class="kv"><span class="grow"><span class="num muted">{i + 1}.</span> {st}</span>
+          <button class={`chip press${special === st ? ' on' : ''}`} onClick={() => setSpecial(st)} aria-pressed={special === st}>Spécialités</button>
           <button class="iconbtn press" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Monter ${st}`}>↑</button>
           <button class="iconbtn press" disabled={i === list.length - 1} onClick={() => move(i, 1)} aria-label={`Descendre ${st}`}>↓</button>
         </div>))}</div>
+      <div class="muted">Les articles vont dans le 1er magasin ; les produits de spécialité (tahini, sauce poisson…) dans celui marqué « Spécialités ». Un article peut aussi changer de magasin dans Courses.</div>
     </Sheet>
   )
 }
 
+const AI_STUDIO = 'https://aistudio.google.com/apikey'
+
 function KeySheet({ onClose }: { onClose: () => void }) {
-  const cfg = settings.get()
-  const [key, setKey] = useState(cfg.geminiKey ?? '')
-  const [state, setState] = useState<{ busy?: boolean; ok?: string; err?: string }>({})
-  const test = async () => {
-    const k = key.trim()
-    setState({ busy: true })
+  const cfg = settings.use()
+  const [key, setKey] = useState('')
+  const [state, setState] = useState<{ busy?: string; ok?: string; err?: string }>({})
+  const [change, setChange] = useState(!cfg.geminiKey)
+  // Saving only checks the key can list the models (about a second). No answer is generated,
+  // so a slow free tier cannot make it time out.
+  const save = async (raw: string) => {
+    const k = raw.trim().replace(/\s+/g, '')
+    if (!k) return
+    setState({ busy: 'Vérification…' })
     try {
       const models = await flashModels(k)
       if (!models.length) throw new LucError('Aucun modèle Gemini Flash disponible pour cette clé.')
-      let model = models[0], last: unknown
-      for (const m of models.slice(0, 3)) {
-        try { const j = await generate(k, m, { contents: [{ role: 'user', parts: [{ text: 'Reply with the word OK.' }] }] }, { timeoutMs: 20000 }); if (!answerText(j)) throw new LucError('Réponse vide.', 0, true); model = m; last = undefined; break }
-        catch (e) { last = e; if (!(e instanceof LucError && e.retry)) break }
-      }
-      if (last) throw last
-      settings.set({ ...settings.get(), geminiKey: k, geminiModel: model })
-      setState({ ok: `Clé enregistrée. Modèle : ${model}.` })
+      settings.set({ ...settings.get(), geminiKey: k, geminiModel: models[0] })
+      setKey(''); setChange(false)
+      setState({})
     } catch (e) {
-      setState({ err: e instanceof LucError ? e.message : 'Test impossible.' })
+      if (e instanceof LucError && e.status === 0) {
+        settings.set({ ...settings.get(), geminiKey: k, geminiModel: undefined })
+        setKey(''); setChange(false)
+        setState({ ok: 'Clé enregistrée. Pas de connexion pour la vérifier : elle le sera à la première question.' })
+      } else setState({ err: e instanceof LucError ? e.message : 'Vérification impossible.' })
     }
   }
+  const paste = async () => {
+    try {
+      const t = await navigator.clipboard.readText()
+      if (t.trim()) { setKey(t.trim()); save(t) } else setState({ err: 'Le presse-papiers est vide : copiez la clé dans AI Studio.' })
+    } catch { setState({ err: 'Collage refusé : collez la clé dans le champ ci-dessous.' }) }
+  }
+  const test = async () => {
+    const k = cfg.geminiKey!
+    setState({ busy: 'Test… (jusqu’à 45 s si Gemini est chargé)' })
+    const t0 = performance.now()
+    try {
+      const { model } = await withModels(k, cfg.geminiModel, async (m) => {
+        const j = await generate(k, m, { contents: [{ role: 'user', parts: [{ text: 'Reply with the word OK.' }] }], generationConfig: { maxOutputTokens: 20 } }, { timeoutMs: 45000 })
+        if (!answerText(j)) throw new LucError('Réponse vide.', 0, true)
+        return true
+      })
+      if (model !== settings.get().geminiModel) settings.set({ ...settings.get(), geminiModel: model })
+      setState({ ok: `Ça marche ✓ ${model} a répondu en ${((performance.now() - t0) / 1000).toFixed(1)} s.` })
+    } catch (e) { setState({ err: `Ne marche pas : ${e instanceof LucError ? e.message : 'erreur inattendue.'}` }) }
+  }
   return (
-    <Sheet title="Clé Gemini" onClose={onClose} foot={<>
-      {cfg.geminiKey && <button class="btn btn-danger grow press" onClick={() => { const { geminiKey: _k, geminiModel: _m, ...rest } = settings.get(); settings.set(rest); setKey(''); setState({}) }}>Effacer</button>}
-      <button class="btn btn-primary grow press" disabled={!key.trim() || state.busy} onClick={test}>{state.busy ? 'Test…' : 'Tester et enregistrer'}</button>
-    </>}>
-      <div class="muted">Créée sur aistudio.google.com/apikey. Elle reste sur ce téléphone : elle n'est jamais envoyée ailleurs que chez Google, ni mise dans les sauvegardes.</div>
-      <input class="field" type="password" autocomplete="off" spellcheck={false} placeholder="Collez la clé ici" value={key} onInput={(e) => { setKey((e.target as HTMLInputElement).value); setState({}) }} />
+    <Sheet title="Clé Gemini" onClose={onClose}>
+      {!change && cfg.geminiKey ? <>
+        <div class="answer ok"><Icon.check />Clé enregistrée{cfg.geminiModel ? ` · ${cfg.geminiModel}` : ''}</div>
+        <div class="muted">Elle reste sur ce téléphone, jamais dans les sauvegardes. Si un modèle est chargé, Luc passe au suivant.</div>
+        <div class="row"><button class="btn btn-secondary btn-sm grow press" disabled={!!state.busy} onClick={test}>Tester</button><button class="btn btn-secondary btn-sm grow press" onClick={() => { setChange(true); setState({}) }}>Changer</button></div>
+        <button class="link" onClick={() => { const { geminiKey: _k, geminiModel: _m, ...rest } = settings.get(); settings.set(rest); setChange(true); setState({}) }}>Effacer la clé</button>
+      </> : <>
+        <ol class="lines">
+          <li>Ouvrez AI Studio, touchez <b>Create API key</b>, puis copiez la clé.</li>
+          <li>Revenez ici et touchez <b>Coller la clé</b>.</li>
+        </ol>
+        <a class="btn btn-secondary press" href={AI_STUDIO} target="_blank" rel="noopener">Ouvrir AI Studio ↗</a>
+        {'clipboard' in navigator && 'readText' in navigator.clipboard && <button class="btn btn-primary press" disabled={!!state.busy} onClick={paste}>Coller la clé</button>}
+        <div class="row">
+          <input class="field grow" type="password" autocomplete="off" spellcheck={false} placeholder="ou collez-la ici" value={key} onInput={(e) => { setKey((e.target as HTMLInputElement).value); setState({}) }} onKeyDown={(e) => { if (e.key === 'Enter') save(key) }} />
+          <button class="btn btn-primary btn-sm press" disabled={!key.trim() || !!state.busy} onClick={() => save(key)}>OK</button>
+        </div>
+        {cfg.geminiKey && <button class="link" onClick={() => { setChange(false); setState({}) }}>Garder la clé actuelle</button>}
+      </>}
+      {state.busy && <div class="row muted"><span class="spinner" />{state.busy}</div>}
       {state.ok && <div class="answer ok"><Icon.check />{state.ok}</div>}
       {state.err && <div class="answer err">{state.err}</div>}
-      {cfg.geminiModel && !state.ok && <div class="muted">Modèle utilisé : {cfg.geminiModel}</div>}
     </Sheet>
   )
 }
@@ -167,7 +222,7 @@ export function Settings() {
       <h1 class="headline">Réglages</h1>
       <div><div class="label">Chef Luc</div><div class="card">
         {row('rules', 'Mes règles', s.rules === DEFAULT_RULES ? 'Texte de départ' : `${plural(lines(s.rules).length, 'ligne', 'lignes')}`)}
-        {row('key', 'Clé Gemini', s.geminiKey ? 'Enregistrée' : 'À ajouter')}
+        {row('key', 'Clé Gemini', s.geminiKey ? 'Enregistrée ✓' : 'À ajouter')}
       </div></div>
       <div><div class="label">Cuisine</div><div class="card">
         {row('family', 'Famille', familySummary(s))}

@@ -232,3 +232,4 @@ label.btn { cursor: pointer; }
 .store { margin-bottom: 10px; }
 
 .tonight { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 2px solid var(--gold); }
+a.btn { text-decoration: none; }

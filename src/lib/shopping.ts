@@ -71,15 +71,19 @@ export function inPantry(key: string, pantry: string[]): boolean {
 // Same list as the Control Center's "Auto": specialty items go to the specialty store.
 const SPECIALTY = /tahin|labneh|laban|sumac|za.?atar|freekeh|frik|mloukh|molokh|pomegranate molasses|halloumi|akkawi|bulgur|orange blossom|rose water|lavash|kaak|knafeh|kataifi|mahlab|nigella|aleppo|baharat|7.spice|seven spice|moughrab|soujouk|sujuk|basterma|mastic|sahlab|ghee|paneer|garam masala|curry leaves|fish sauce|gochujang|lemongrass|galangal|kaffir|sa cha|doubanjiang|shaoxing|kecap|tamarind|miso|mirin|rice paper|nori|bok choy|thai basil/i
 
-export function defaultStore(name: string, stores: string[]): string {
+/** The store for specialty items: the one chosen in Réglages, else a name that looks like one. */
+export const specialtyStore = (stores: string[], chosen?: string) =>
+  chosen && stores.includes(chosen) ? chosen : stores.find((s) => /balboa|99|ranch|tj|asian|international|special/i.test(s)) ?? stores[stores.length - 1]
+
+export function defaultStore(name: string, stores: string[], specialty?: string): string {
   if (!stores.length) return ''
-  if (SPECIALTY.test(name)) return stores.find((s) => /balboa|99|ranch|tj|asian|international|special/i.test(s)) ?? stores[stores.length - 1]
+  if (SPECIALTY.test(name)) return specialtyStore(stores, specialty)
   return stores[0]
 }
 
 export interface Planned { recipe: Recipe; factor: number }
 
-export function buildList(planned: Planned[], pantry: string[], stores: string[], storeFor: Record<string, string> = {}): ShopList {
+export function buildList(planned: Planned[], pantry: string[], stores: string[], storeFor: Record<string, string> = {}, specialty?: string): ShopList {
   const byKey = new Map<string, Item>()
   for (const { recipe, factor } of planned) {
     for (const line of recipe.mise) {
@@ -89,7 +93,7 @@ export function buildList(planned: Planned[], pantry: string[], stores: string[]
         let it = byKey.get(key)
         if (!it) {
           const saved = storeFor[key]
-          it = { key, name: p.name, amounts: [], notes: [], store: saved && stores.includes(saved) ? saved : defaultStore(p.name, stores), from: [] }
+          it = { key, name: p.name, amounts: [], notes: [], store: saved && stores.includes(saved) ? saved : defaultStore(p.name, stores, specialty), from: [] }
           byKey.set(key, it)
         }
         if (!it.from.includes(recipe.number)) it.from.push(recipe.number)

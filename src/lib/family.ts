@@ -97,6 +97,22 @@ export async function familyAction(body: Record<string, unknown>): Promise<any> 
   return j
 }
 
+/**
+ * The names of the shopping lists in Cozi (script v0.3.6+). null when the script is older or
+ * unreachable: the app then cannot check store names.
+ */
+export async function coziListNames(): Promise<string[] | null> {
+  const key = familyKey()
+  if (!key || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null
+  try {
+    const j = await (await fetch(`${api()}?k=${encodeURIComponent(key)}&a=lists`, { cache: 'no-store' })).json()
+    return Array.isArray(j?.lists) ? j.lists.map(String) : null
+  } catch { return null }
+}
+
+/** Store names that are not (or no longer) a Cozi list. */
+export const missingStores = (stores: string[], lists: string[]) => stores.filter((s) => !lists.includes(s))
+
 /** Was this dinner already sent to Cozi, from either app? */
 export const sentFor = (f: Family, d: Pick<Dinner, 'date' | 'dish'>) => f.sent.find((s) => s.date === d.date && fold(s.dish) === fold(d.dish))
 
