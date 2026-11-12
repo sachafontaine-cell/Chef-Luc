@@ -123,23 +123,37 @@ export function LucSheet({ mode, ctx, onClose }: { mode: LucMode; ctx: Context; 
         : <div class="answer err">{stage.msg}<button class="btn btn-secondary btn-sm press" onClick={() => run(stage.q)}>Réessayer</button></div>)}
       {stage.s === 'reply' && <>
         {stage.reply.answer && <div class="answer">{stage.reply.answer}</div>}
-        {stage.reply.options.length > 1 && <div class="stack">{stage.reply.options.map((o, i) => (
-          <button class={`option press${stage.pick === i ? ' on' : ''}`} aria-pressed={stage.pick === i} onClick={() => setStage({ ...stage, pick: i })}>
-            <b>{o.title}</b>{o.why && <span class="muted">{o.why}</span>}
-          </button>))}</div>}
-        {stage.reply.options[stage.pick] && (() => {
-          const o = stage.reply.options[stage.pick]
-          const edits = (o.patch.mise?.length ?? 0) + (o.patch.steps?.length ?? 0)
-          return <div class="card card-pad stack">
-            {stage.reply.options.length === 1 && <div><b>{o.title}</b>{o.why && <div class="muted">{o.why}</div>}</div>}
-            {edits > 0 && <Changes option={o} ctx={ctx} />}
-            <div class="choices">
-              {edits > 0 && <button class="btn btn-primary press" onClick={() => { addTonight(o.patch); setStage({ s: 'done', msg: 'Appliqué pour ce soir.' }) }}>Juste ce soir</button>}
-              {edits > 0 && <button class="btn btn-secondary press" onClick={() => setStage({ ...stage, s: 'save', summary: o.title })}>Enregistrer dans la recette…</button>}
-              <button class="btn btn-secondary press" onClick={() => setStage({ ...stage, s: 'rule', rule: o.rule || o.title })}>En faire une règle…</button>
+        {mode.kind === 'swap' ? stage.reply.options.map((o) => (
+          // A swap is for what is on the stove now: one tap replaces the line in Cuisiner.
+          <div class="card card-pad stack">
+            <div><b>{o.title}</b>{o.why && <div class="muted">{o.why}</div>}</div>
+            {(o.patch.mise ?? []).map((e) => <div class="new">{e.text}</div>)}
+            {(o.patch.steps ?? []).map((e) => <div class="new"><b>{e.label || ctx.recipe.steps[e.i]?.label}. </b>{e.text}</div>)}
+            <button class="btn btn-primary press" onClick={() => { addTonight(o.patch); onClose() }}>Utiliser ce soir</button>
+            <div class="row links">
+              <button class="link" onClick={() => setStage({ ...stage, pick: stage.reply.options.indexOf(o), s: 'save', summary: o.title })}>Garder aussi dans la recette…</button>
+              <button class="link" onClick={() => setStage({ ...stage, pick: stage.reply.options.indexOf(o), s: 'rule', rule: o.rule || o.title })}>En faire une règle…</button>
             </div>
           </div>
-        })()}
+        )) : <>
+          {stage.reply.options.length > 1 && <div class="stack">{stage.reply.options.map((o, i) => (
+            <button class={`option press${stage.pick === i ? ' on' : ''}`} aria-pressed={stage.pick === i} onClick={() => setStage({ ...stage, pick: i })}>
+              <b>{o.title}</b>{o.why && <span class="muted">{o.why}</span>}
+            </button>))}</div>}
+          {stage.reply.options[stage.pick] && (() => {
+            const o = stage.reply.options[stage.pick]
+            const edits = (o.patch.mise?.length ?? 0) + (o.patch.steps?.length ?? 0)
+            return <div class="card card-pad stack">
+              {stage.reply.options.length === 1 && <div><b>{o.title}</b>{o.why && <div class="muted">{o.why}</div>}</div>}
+              {edits > 0 && <Changes option={o} ctx={ctx} />}
+              <div class="choices">
+                {edits > 0 && <button class="btn btn-primary press" onClick={() => { addTonight(o.patch); onClose() }}>Utiliser ce soir</button>}
+                {edits > 0 && <button class="btn btn-secondary press" onClick={() => setStage({ ...stage, s: 'save', summary: o.title })}>Enregistrer dans la recette…</button>}
+                <button class="btn btn-secondary press" onClick={() => setStage({ ...stage, s: 'rule', rule: o.rule || o.title })}>En faire une règle…</button>
+              </div>
+            </div>
+          })()}
+        </>}
       </>}
       {(stage.s === 'write' || stage.s === 'reply' || stage.s === 'error') && (
         <div class="row ask">
