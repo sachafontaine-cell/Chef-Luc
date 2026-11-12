@@ -7,21 +7,22 @@ import { Recipes } from './screens/recipes'
 import { RecipePage } from './screens/recipe'
 import { Cook } from './screens/cook'
 import { TimerDock } from './screens/timers'
-import { Shop } from './screens/later'
+import { Shop, recipeForDish } from './screens/shop'
 import { Settings } from './screens/settings'
 
 export function App() {
   const r = route.use(), s = session.use(), all = versions.use()
-  const base = r.name === 'recipe' ? recipe(r.id!) : undefined
+  const base = r.name === 'recipe' ? recipe(r.id!) : r.name === 'dish' ? recipeForDish(r.title!) : undefined
   const found = base && current(base, all)
-  const tab = r.name === 'recipe' ? 'recipes' : r.name
+  const tab = r.name === 'recipe' || r.name === 'dish' ? 'recipes' : r.name
   const tabs = [
     ['recipes', '#/', 'Recettes', Icon.book], ['cook', '#/cook', 'Cuisiner', Icon.pot],
     ['shop', '#/shop', 'Courses', Icon.cart], ['settings', '#/settings', 'Réglages', Icon.gear],
   ] as const
   return (
     <div class="shell">
-      {r.name === 'recipe' && found ? <RecipePage key={found.number} recipe={found} />
+      {(r.name === 'recipe' || r.name === 'dish') && found ? <RecipePage key={found.number} recipe={found} />
+        : r.name === 'dish' ? <div class="main"><div class="empty">Pas de fiche Chef Luc pour « {r.title} ».<button class="btn btn-primary press" onClick={() => go('#/')}>Voir les recettes</button></div></div>
         : r.name === 'cook' ? <Cook />
         : r.name === 'shop' ? <Shop />
         : r.name === 'settings' ? <Settings />

@@ -92,12 +92,12 @@ export function parseReply(raw: unknown, r: Pick<Recipe, 'mise' | 'steps'>): Rep
     (Array.isArray(list) ? list : [])
       .filter((e) => e && Number.isInteger(e.i) && e.i >= 0 && e.i <= max && typeof e.text === 'string' && e.text.trim())
       .map((e) => ({ i: e.i, text: String(e.text).trim(), ...(typeof e.label === 'string' && e.label.trim() ? { label: e.label.trim() } : {}) }))
-  const options: Option[] = (Array.isArray(j.options) ? j.options : []).slice(0, 3).map((o: any) => ({
+  const options: Option[] = (Array.isArray(j.options) ? j.options : []).map((o: any) => ({
     title: String(o?.title ?? '').trim() || 'Modification',
     why: String(o?.why ?? '').trim(),
     patch: { mise: edits(o?.mise, r.mise.length), steps: edits(o?.steps, r.steps.length) },
     rule: String(o?.rule ?? '').trim(),
-  })).filter((o: Option) => o.patch.mise!.length || o.patch.steps!.length || o.rule)
+  })).filter((o: Option) => o.patch.mise!.length || o.patch.steps!.length || o.rule).slice(0, 3)
   return { answer: String(j.answer ?? '').trim(), options }
 }
 
@@ -105,4 +105,26 @@ export function readJson(text: string): unknown {
   const start = text.indexOf('{'), end = text.lastIndexOf('}')
   if (start < 0 || end < start) return undefined
   try { return JSON.parse(text.slice(start, end + 1)) } catch { return undefined }
+}
+
+// ---- Batch prep: one call per set of recipes (cached by the Courses tab).
+
+export const PREP_SCHEMA = { type: 'OBJECT', properties: { tips: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['tips'] }
+
+export function prepBody(s: Settings, recipes: Recipe[], sharedText: string): Record<string, unknown> {
+  const list = recipes.map((r) => [`RECIPE ${String(r.number).padStart(3, '0')} ${r.title}`, ...r.mise.map((m) => '- ' + m)].join('\n')).join('\n\n')
+  return {
+    systemInstruction: { parts: [{ text: `${systemText(s)}
+
+TASK
+The cook is shopping for these recipes this week. Suggest batch prep that saves time and dishes across the week: what to prep once for several recipes (chop onions once for 3 meals, rice once for 2, a marinade made ahead), when to do it, and how to store it so it stays good. Also say how to use up a whole bunch or pack shared by several recipes.
+"tips": 3 to 6 short tips in French, most useful first, each naming the recipes by number (e.g. 083, 159). No generic advice.` }] },
+    contents: [{ role: 'user', parts: [{ text: `${list}\n\nINGREDIENTS IN SEVERAL RECIPES: ${sharedText || 'none'}` }] }],
+    generationConfig: { responseMimeType: 'application/json', responseSchema: PREP_SCHEMA, temperature: 0.3, maxOutputTokens: 1500 },
+  }
+}
+
+export function parsePrep(raw: unknown): string[] {
+  const t = (raw as { tips?: unknown })?.tips
+  return (Array.isArray(t) ? t : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 8)
 }

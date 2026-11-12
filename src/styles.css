@@ -208,3 +208,27 @@ svg { width: 24px; height: 24px; flex-shrink: 0; }
 .kv:disabled { opacity: 1; }
 .kv .iconbtn { width: 44px; height: 44px; font-size: 20px; }
 label.btn { cursor: pointer; }
+
+/* Step 3: Courses */
+.meal, .item { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); }
+.meal:last-child, .item:last-child { border-bottom: 0; }
+.meal .check-main, .item .check-main { flex: 1; min-width: 0; }
+.meal:not(.on) .mdish { color: var(--muted); }
+.mday { display: block; font-size: 14px; color: var(--muted); font-weight: 600; }
+.mdish { font-size: 18px; font-weight: 600; }
+.tag.sent { background: var(--success-bg); color: var(--success); margin: 4px 0 0 8px; text-transform: none; letter-spacing: 0; font-size: 13px; }
+.store-h { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px 14px; font-weight: 700; font-size: 15px; background: var(--tile); border-bottom: 1px solid var(--border); text-align: left; }
+.pantry-h { color: var(--muted); font-weight: 600; min-height: 48px; }
+.item .check-main { font-size: 17px; padding-top: 12px; padding-bottom: 12px; min-height: 52px; }
+.item.have .grow { color: var(--muted); text-decoration: line-through; }
+.item.have .box { background: transparent; }
+.from { color: var(--muted); font-size: 13px; }
+.storebtn { min-width: 72px; padding: 0 10px; font-size: 13px; font-weight: 700; color: var(--muted); border-left: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+.small { font-size: 14px; }
+.tips { font-size: 16px; }
+.left { text-align: left; }
+.actionbar.stack { flex-direction: column; gap: 8px; }
+.actionbar .btn { min-height: 52px; }
+.store { margin-bottom: 10px; }
+
+.tonight { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 2px solid var(--gold); }
