@@ -92,7 +92,10 @@ export const photo = (r: Recipe) => import.meta.env.BASE_URL + r.image
 
 export type Sort = 'number' | 'active' | 'wash' | 'old'
 export interface Query { q: string; groups: Group[]; prot: string[]; cui: string[]; style: string[]; kid: boolean; sort: Sort }
-export const emptyQuery = (): Query => ({ q: '', groups: [], prot: [], cui: [], style: [], kid: false, sort: 'number' })
+/** Default: what hasn't been cooked for the longest time (falls back to card order without the family link). */
+export const emptyQuery = (): Query => ({ q: '', groups: [], prot: [], cui: [], style: [], kid: false, sort: 'old' })
+/** The sort actually used: "not cooked lately" needs the Control Center's history. */
+export const effectiveSort = (q: Query, facets: Facets): Sort => (q.sort === 'old' && !Object.keys(facets).length ? 'number' : q.sort)
 
 /** What the family's Recettes sheet says about a dish (filled in by the Control Center link). */
 export interface Facet { prot?: string; cui?: string; style?: string[]; kid?: boolean; last?: string }
@@ -108,9 +111,13 @@ export function search(list: Recipe[], query: Query, facets: Facets = {}): Recip
       && any(query.prot, f.prot ? [f.prot] : []) && any(query.cui, f.cui ? [f.cui] : []) && any(query.style, f.style || [])
       && (!query.kid || !!f.kid)
   })
-  const big = 1e9
-  if (query.sort === 'active') out.sort((a, b) => (a.activeMin ?? big) - (b.activeMin ?? big) || a.number - b.number)
-  else if (query.sort === 'wash') out.sort((a, b) => (a.washCount || big) - (b.washCount || big) || a.number - b.number)
-  else if (query.sort === 'old') out.sort((a, b) => (facets[fold(a.title)]?.last || '').localeCompare(facets[fold(b.title)]?.last || '') || a.number - b.number)
+  const big = 1e9, sort = effectiveSort(query, facets)
+  if (sort === 'active') out.sort((a, b) => (a.activeMin ?? big) - (b.activeMin ?? big) || a.number - b.number)
+  else if (sort === 'wash') out.sort((a, b) => (a.washCount || big) - (b.washCount || big) || a.number - b.number)
+  else if (sort === 'old') {
+    // Dishes on the family list first: never cooked, then the longest ago. Everything else after, in card order.
+    const rank = (r: Recipe) => { const f = facets[fold(r.title)]; return f ? (f.last ? '1' + f.last : '0') : '2' }
+    out.sort((a, b) => rank(a).localeCompare(rank(b)) || a.number - b.number)
+  }
   return out
 }

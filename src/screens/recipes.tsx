@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Chips, Icon, Sheet } from '../ui'
 import { createStore } from '../lib/store'
-import { emptyQuery, GROUPS, pad, photo, RECIPES, search, type Group, type Query, type Recipe, type Sort } from '../lib/recipes'
+import { effectiveSort, emptyQuery, GROUPS, pad, photo, RECIPES, search, type Group, type Query, type Recipe, type Sort } from '../lib/recipes'
 import { cuisines, family, proteins, styles } from '../lib/family'
 import { go } from '../lib/engine'
 
@@ -37,9 +37,13 @@ export function Recipes() {
   const set = (change: Partial<Query>) => { query.set({ ...q, ...change }); if (main.current) main.current.scrollTop = 0 }
   const list = search(RECIPES, q, fam.facets)
   const linked = Object.keys(fam.facets).length > 0
-  const extra = q.prot.length + q.cui.length + q.style.length + (q.kid ? 1 : 0) + (q.sort !== 'number' ? 1 : 0)
-  const sorts: [Sort, string][] = [['number', 'Numéro'], ['active', 'Temps actif'], ['wash', 'Moins de vaisselle']]
+  const prots = proteins(fam.facets)
+  const sort = effectiveSort(q, fam.facets)
+  const defaultSort = effectiveSort(emptyQuery(), fam.facets)
+  const extra = q.groups.length + q.cui.length + q.style.length + (q.kid ? 1 : 0) + (sort !== defaultSort ? 1 : 0)
+  const sorts: [Sort, string][] = []
   if (linked) sorts.push(['old', 'Pas fait depuis longtemps'])
+  sorts.push(['number', 'Numéro'], ['active', 'Temps actif'], ['wash', 'Moins de vaisselle'])
   return (
     <div class="main" ref={main} onScroll={(e) => { scrollTop = (e.currentTarget as HTMLElement).scrollTop }}>
       <div class="stack">
@@ -48,25 +52,27 @@ export function Recipes() {
           <label class="searchbox grow"><Icon.search /><input type="search" class="field" placeholder="Titre ou ingrédient" autocomplete="off" enterkeyhint="search" value={q.q} onInput={(e) => set({ q: (e.target as HTMLInputElement).value })} aria-label="Chercher une recette" /></label>
           <button class={`iconbtn press${extra ? ' on' : ''}`} onClick={() => setFilters(true)} aria-label="Trier et filtrer"><Icon.sliders />{extra > 0 && <span class="count num">{extra}</span>}</button>
         </div>
-        <div class="strip" role="group" aria-label="Catégories">
-          <button class={`chip press${q.groups.length ? '' : ' on'}`} onClick={() => set({ groups: [] })}>Tout</button>
-          {GROUPS.map(([g, label]) => <button class={`chip press${q.groups.includes(g) ? ' on' : ''}`} aria-pressed={q.groups.includes(g)} onClick={() => set({ groups: flip(q.groups, g) })}>{label}</button>)}
-        </div>
+        {prots.length > 0 && (
+          <div class="strip" role="group" aria-label="Protéine">
+            <button class={`chip press${q.prot.length ? '' : ' on'}`} onClick={() => set({ prot: [] })}>Tout</button>
+            {prots.map((p) => <button class={`chip press${q.prot.includes(p) ? ' on' : ''}`} aria-pressed={q.prot.includes(p)} onClick={() => set({ prot: flip(q.prot, p) })}>{p}</button>)}
+          </div>
+        )}
         {list.length ? <div class="card rlist">{list.map((r) => <Row key={r.number} r={r} />)}</div>
           : <div class="empty">Aucune recette.<button class="link" onClick={() => query.set(emptyQuery())}>Tout afficher</button></div>}
       </div>
       {filters && (
         <Sheet title="Trier et filtrer" onClose={() => setFilters(false)} foot={<>
-          <button class="btn btn-secondary grow press" onClick={() => query.set({ ...emptyQuery(), q: q.q, groups: q.groups })}>Effacer</button>
+          <button class="btn btn-secondary grow press" onClick={() => query.set({ ...emptyQuery(), q: q.q, prot: q.prot })}>Effacer</button>
           <button class="btn btn-primary grow press" onClick={() => setFilters(false)}>Voir {list.length} recette{list.length > 1 ? 's' : ''}</button>
         </>}>
-          <div><div class="label">Trier par</div><Chips options={sorts} value={[q.sort]} onToggle={(sort) => set({ sort })} /></div>
+          <div><div class="label">Trier par</div><Chips options={sorts} value={[sort]} onToggle={(v) => set({ sort: v })} /></div>
+          <div><div class="label">Catégorie</div><Chips options={GROUPS} value={q.groups} onToggle={(g) => set({ groups: flip(q.groups, g) })} /></div>
           {linked ? <>
-            <div><div class="label">Protéine</div><Chips options={pairs(proteins(fam.facets))} value={q.prot} onToggle={(v) => set({ prot: flip(q.prot, v) })} /></div>
             <div><div class="label">Cuisine</div><Chips options={pairs(cuisines(fam.facets))} value={q.cui} onToggle={(v) => set({ cui: flip(q.cui, v) })} /></div>
             <div><div class="label">Style</div><Chips options={pairs(styles(fam.facets))} value={q.style} onToggle={(v) => set({ style: flip(q.style, v) })} /></div>
             <div><div class="label">Aussi</div><Chips options={[['kid', 'Facile pour enfants']]} value={q.kid ? ['kid'] : []} onToggle={() => set({ kid: !q.kid })} /></div>
-          </> : <div class="muted">Les filtres Protéine, Cuisine et Style apparaissent une fois le lien famille du Control Center ouvert sur ce téléphone.</div>}
+          </> : <div class="muted">Protéine, Cuisine, Style et « Pas fait depuis longtemps » viennent du Control Center : ouvrez une fois le lien famille dans Chrome sur ce téléphone.</div>}
         </Sheet>
       )}
     </div>

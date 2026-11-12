@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dishes, emptyQuery, fold, recipe, RECIPES, search } from './recipes'
-import { toFacets } from './family'
+import { proteins, toFacets } from './family'
 
 describe('the recipe library', () => {
   it('loads every card with steps and a photo', () => {
@@ -55,6 +55,16 @@ describe('searching', () => {
     expect(search(RECIPES, q({ prot: ['Poulet'] }), facets).map((r) => r.number)).toEqual([27])
     expect(search(RECIPES, q({ style: ['Riz'], kid: true }), facets).map((r) => r.number)).toEqual([27])
     expect(search(RECIPES, q({ cui: ['Italien'] }), facets)).toEqual([])
+  })
+  it('defaults to "not cooked lately": never cooked first, then oldest, then dishes not on the family list', () => {
+    const facets = toFacets([{ t: 'Chicken Satay Bake', last: '2026-10-01' }, { t: 'Thai Green Curry', last: '2026-06-01' }, { t: 'Ancho Chicken Salad' }])
+    expect(search(RECIPES, emptyQuery(), facets).slice(0, 4).map((r) => r.number)).toEqual([1, 2, 27, 3])
+  })
+  it('falls back to card order without the family link', () => {
+    expect(search(RECIPES, emptyQuery()).slice(0, 3).map((r) => r.number)).toEqual([1, 2, 3])
+  })
+  it('lists proteins in the Control Center order', () => {
+    expect(proteins(toFacets([{ t: 'a', prot: 'Poisson' }, { t: 'b', prot: 'Poulet' }, { t: 'c', prot: 'Poulet' }, { t: 'd', prot: 'Bœuf' }]))).toEqual(['Poulet', 'Bœuf', 'Poisson'])
   })
   it('survives odd answers from the Control Center', () => {
     expect(toFacets(undefined)).toEqual({})

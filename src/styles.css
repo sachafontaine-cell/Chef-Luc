@@ -174,3 +174,9 @@ svg { width: 24px; height: 24px; flex-shrink: 0; }
 .kv { display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 0 14px; width: 100%; border-bottom: 1px solid var(--border); font-size: 16px; gap: 12px; }
 .kv:last-child { border-bottom: 0; }
 .kv .k { color: var(--muted); }
+
+.ver { gap: 10px; }
+.refresh { width: 44px; height: 44px; border-radius: 22px; border: 1.5px solid var(--text); display: flex; align-items: center; justify-content: center; }
+.refresh svg { width: 22px; height: 22px; }
+.refresh.spin svg { animation: spin 800ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
