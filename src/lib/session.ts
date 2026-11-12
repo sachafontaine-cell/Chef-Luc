@@ -1,8 +1,10 @@
 // The recipe being cooked right now: what is checked off, the portions, the timers.
 // Saved on every change, so closing the app (or the phone restarting) loses nothing.
 import { createStore } from './store'
-import { cardPortions, type Portions } from './portions'
+import { familyPortions, type Portions } from './portions'
 import { recipe as findRecipe, type Recipe } from './recipes'
+import { familyCounts } from './settings'
+import { applyPatch, current, mergePatch, type Patch } from './versions'
 
 export interface Timer { id: string; label: string; ms: number; endAt: number; step?: number; quiet?: boolean }
 export interface Session {
@@ -15,6 +17,8 @@ export interface Session {
   startedAt: number
   /** The cook turned "keep the screen on" off. */
   lockOff?: boolean
+  /** Changes for tonight only ("Juste ce soir"). */
+  patch?: Patch
 }
 
 export const session = createStore<Session | null>(null, 'session')
@@ -24,7 +28,7 @@ export const drafts = createStore<Record<number, Portions>>({})
 
 export function portionsFor(r: Recipe): Portions {
   const s = session.get()
-  return s && s.recipe === r.number ? s.portions : drafts.get()[r.number] ?? cardPortions(r)
+  return s && s.recipe === r.number ? s.portions : drafts.get()[r.number] ?? familyPortions(r, familyCounts())
 }
 /** The one place portions are changed, whether cooking has started or not. */
 export function setPortions(r: Recipe, p: Portions) {
@@ -40,7 +44,12 @@ export function startCooking(r: Recipe, now = Date.now()) {
 }
 export const endCooking = () => session.set(null)
 
-export const cooking = (s: Session | null): Recipe | undefined => (s ? findRecipe(s.recipe) : undefined)
+/** The recipe being cooked: its version in use, plus tonight's changes. */
+export function cooking(s: Session | null): Recipe | undefined {
+  const base = s ? findRecipe(s.recipe) : undefined
+  return base && applyPatch(current(base), s!.patch)
+}
+export const addTonight = (p: Patch) => edit((s) => ({ ...s, patch: mergePatch(s.patch, p) }))
 export const allDone = (s: Session, r: Recipe) => r.steps.length > 0 && r.steps.every((_, i) => s.steps.includes(i))
 /** The first step not done yet: what the cook should be looking at. */
 export const currentStep = (s: Session, r: Recipe) => r.steps.findIndex((_, i) => !s.steps.includes(i))

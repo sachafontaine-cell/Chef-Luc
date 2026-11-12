@@ -1,6 +1,7 @@
 // The one place portions are changed. Opened from a recipe page and from Cook mode.
 import { Sheet, Stepper } from '../ui'
-import { cardPortions, factor, isCard, SIZES, times, yieldKind, type Portions, type Size } from '../lib/portions'
+import { factor, familyPortions, isCard, SIZES, times, yieldKind, type Portions, type Size } from '../lib/portions'
+import { familyCounts, kidShare, settings } from '../lib/settings'
 import type { Recipe } from '../lib/recipes'
 import { portionsFor, setPortions } from '../lib/session'
 
@@ -18,17 +19,20 @@ export function portionsText(r: Recipe, p: Portions): string {
 }
 
 export function PortionsSheet({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
-  const p = portionsFor(recipe)
+  settings.use()
+  const p = portionsFor(recipe), kid = kidShare()
+  const start = familyPortions(recipe, familyCounts())
   const set = (change: Partial<Portions>) => setPortions(recipe, { ...p, ...change })
   const family = yieldKind(recipe.yield).family
-  const f = factor(recipe, p)
+  const f = factor(recipe, p, kid)
   return (
     <Sheet title="Portions" onClose={onClose} foot={<>
-      <button class="btn btn-secondary grow press" disabled={isCard(recipe, p)} onClick={() => setPortions(recipe, cardPortions(recipe))}>Comme la fiche</button>
+      <button class="btn btn-secondary grow press" disabled={JSON.stringify(p) === JSON.stringify(start)} onClick={() => setPortions(recipe, start)}>Par défaut</button>
       <button class="btn btn-primary grow press" onClick={onClose}>OK</button>
     </>}>
       <div class="muted">Fiche : {recipe.yield}</div>
       {family ? <>
+        <div class="muted">Les portions d'enfant suivent l'âge des enfants (Réglages → Famille).</div>
         <div class="card">
           <Stepper label="Adultes" value={p.adults} min={1} max={12} onChange={(adults) => set({ adults })} />
           <Stepper label="Enfants" value={p.kids} min={0} max={12} onChange={(kids) => set({ kids })} />
@@ -43,8 +47,8 @@ export function PortionsSheet({ recipe, onClose }: { recipe: Recipe; onClose: ()
       </> : (
         <div class="card"><Stepper label="Quantité" hint="Multiplie toute la recette" value={p.mult} min={0.5} max={4} step={0.5} show={times} onChange={(mult) => set({ mult })} /></div>
       )}
-      <div class={`scale-note${isCard(recipe, p) ? '' : ' on'}`} aria-live="polite">
-        {isCard(recipe, p) ? 'Quantités de la fiche.' : `Quantités ${times(f)}. Les temps de cuisson et la taille des plats ne changent pas : à surveiller.`}
+      <div class={`scale-note${isCard(recipe, p, kid) ? '' : ' on'}`} aria-live="polite">
+        {isCard(recipe, p, kid) ? 'Quantités de la fiche.' : `Quantités ${times(f)}. Les temps de cuisson et la taille des plats ne changent pas : à surveiller.`}
       </div>
     </Sheet>
   )

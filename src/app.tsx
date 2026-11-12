@@ -2,15 +2,18 @@ import { Icon } from './ui'
 import { route, go } from './lib/engine'
 import { session } from './lib/session'
 import { recipe } from './lib/recipes'
+import { current, versions } from './lib/versions'
 import { Recipes } from './screens/recipes'
 import { RecipePage } from './screens/recipe'
 import { Cook } from './screens/cook'
 import { TimerDock } from './screens/timers'
-import { Settings, Shop } from './screens/later'
+import { Shop } from './screens/later'
+import { Settings } from './screens/settings'
 
 export function App() {
-  const r = route.use(), s = session.use()
-  const found = r.name === 'recipe' ? recipe(r.id!) : undefined
+  const r = route.use(), s = session.use(), all = versions.use()
+  const base = r.name === 'recipe' ? recipe(r.id!) : undefined
+  const found = base && current(base, all)
   const tab = r.name === 'recipe' ? 'recipes' : r.name
   const tabs = [
     ['recipes', '#/', 'Recettes', Icon.book], ['cook', '#/cook', 'Cuisiner', Icon.pot],

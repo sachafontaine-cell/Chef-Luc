@@ -18,6 +18,8 @@ export const Icon = {
   x: () => svg(<path d="M6 6l12 12M18 6L6 18" />),
   people: () => svg(<><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17.5" cy="9" r="2.4" /><path d="M16.5 14.2c2.6.3 4.5 2.5 4.5 5.3" /></>),
   refresh: () => svg(<><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" /><path d="M19.5 4.5v4h-4" /></>),
+  swap: () => svg(<><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" /></>),
+  chat: () => svg(<><path d="M4 5h16v11H9l-5 4z" /><path d="M8 9.5h8M8 12.5h5" /></>),
   sink: () => svg(<><path d="M3 13h18v2a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z" /><path d="M12 13V6a2.5 2.5 0 0 1 5 0v1" /></>),
 }
 
