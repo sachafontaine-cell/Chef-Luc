@@ -4,10 +4,12 @@ import { allDone, cooking, isRinging, isRunning, quietTimer, session } from './s
 import { applyLock, wantLock } from './wakelock'
 import { clearNotify, notify, setSound } from './alarm'
 
-export interface Route { name: 'recipes' | 'recipe' | 'cook' | 'shop' | 'settings'; id?: number }
+export interface Route { name: 'recipes' | 'recipe' | 'dish' | 'cook' | 'shop' | 'settings'; id?: number; title?: string }
 export function parseRoute(hash: string): Route {
   const p = hash.replace(/^#\/?/, '').split('/')
   if (p[0] === 'r' && /^\d+$/.test(p[1] || '')) return { name: 'recipe', id: +p[1] }
+  // From the Control Center's "Cuisiner" button: the dish name, as on the family menu.
+  if (p[0] === 'd' && p[1]) { try { return { name: 'dish', title: decodeURIComponent(p.slice(1).join('/')) } } catch { return { name: 'recipes' } } }
   if (p[0] === 'cook' || p[0] === 'shop' || p[0] === 'settings') return { name: p[0] }
   return { name: 'recipes' }
 }

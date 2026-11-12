@@ -4,6 +4,28 @@ import { createStore } from '../lib/store'
 import { effectiveSort, emptyQuery, GROUPS, pad, photo, RECIPES, search, type Group, type Query, type Recipe, type Sort } from '../lib/recipes'
 import { cuisines, family, proteins, styles } from '../lib/family'
 import { go } from '../lib/engine'
+import { comingDinners } from '../lib/family'
+import { session, startCooking } from '../lib/session'
+import { current } from '../lib/versions'
+import { recipeForDish, ymdLocal } from './shop'
+
+/** Tonight's dinner from the family menu, one tap from cooking. */
+function Tonight() {
+  const fam = family.use(), s = session.use()
+  const d = comingDinners(fam, ymdLocal()).find((x) => x.date === ymdLocal() && x.dish)
+  if (!d) return null
+  const r = recipeForDish(d.dish)
+  const cooking = !!r && s?.recipe === r.number
+  return (
+    <div class="card tonight">
+      {r && <span class="pic rthumb"><img src={photo(r)} alt="" width="96" height="72" /></span>}
+      <button class="grow press left" onClick={() => r && go(`#/r/${r.number}`)} disabled={!r}>
+        <span class="mday">Ce soir · {d.cook}</span><span class="mdish">{d.dish}</span>
+      </button>
+      {r && <button class="btn btn-primary btn-sm press" onClick={() => { if (!cooking) { if (s) return go(`#/r/${r.number}`); startCooking(current(r)) } go('#/cook') }}>{cooking ? 'Reprendre' : 'Cuisiner'}</button>}
+    </div>
+  )
+}
 
 // Kept while the app is open, so coming back from a recipe shows the same list at the same place.
 const query = createStore<Query>(emptyQuery())
@@ -48,6 +70,7 @@ export function Recipes() {
     <div class="main" ref={main} onScroll={(e) => { scrollTop = (e.currentTarget as HTMLElement).scrollTop }}>
       <div class="stack">
         <div class="row"><h1 class="headline grow">Recettes</h1><span class="muted num">{list.length} sur {RECIPES.length}</span></div>
+        <Tonight />
         <div class="row">
           <label class="searchbox grow"><Icon.search /><input type="search" class="field" placeholder="Titre ou ingrédient" autocomplete="off" enterkeyhint="search" value={q.q} onInput={(e) => set({ q: (e.target as HTMLInputElement).value })} aria-label="Chercher une recette" /></label>
           <button class={`iconbtn press${extra ? ' on' : ''}`} onClick={() => setFilters(true)} aria-label="Trier et filtrer"><Icon.sliders />{extra > 0 && <span class="count num">{extra}</span>}</button>
