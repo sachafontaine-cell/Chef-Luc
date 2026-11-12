@@ -4,7 +4,7 @@ import { pad } from '../lib/recipes'
 import { scaleText } from '../lib/amounts'
 import { findDurations } from '../lib/durations'
 import { factor, isCard, times } from '../lib/portions'
-import { allDone, cooking, currentStep, endCooking, session, startTimer, toggleLock, toggleMise, toggleStep } from '../lib/session'
+import { allDone, clearTonight, cooking, currentStep, endCooking, session, startTimer, toggleLock, toggleMise, toggleStep } from '../lib/session'
 import { kidShare, settings } from '../lib/settings'
 import { changed, current, versions } from '../lib/versions'
 import { recipe as baseRecipe } from '../lib/recipes'
@@ -61,6 +61,7 @@ export function Cook() {
           <Icon.people /><span class="grow"><b>{portionsText(r, s.portions)}</b>{!isCard(r, s.portions, kid) && <span class="scaled"> · quantités {times(f)}</span>}</span><span class="link">Changer</span>
         </button>
 
+        {tonight.mise.length + tonight.steps.length > 0 && <div class="fact tonightbar"><Icon.swap /><span class="grow">Changé ce soir : {tonight.mise.length + tonight.steps.length} ligne{tonight.mise.length + tonight.steps.length > 1 ? 's' : ''} (marquées « ce soir »). La recette et la liste de courses ne changent pas.</span><button class="link" onClick={clearTonight}>Annuler</button></div>}
         {r.tools.length > 0 && <section><h2 class="label">Outils</h2><p class="text">{r.tools.join(', ')}</p></section>}
 
         {r.mise.length > 0 && <section>

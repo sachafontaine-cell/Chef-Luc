@@ -50,6 +50,8 @@ export function cooking(s: Session | null): Recipe | undefined {
   return base && applyPatch(current(base), s!.patch)
 }
 export const addTonight = (p: Patch) => edit((s) => ({ ...s, patch: mergePatch(s.patch, p) }))
+/** Back to the recipe as written, for tonight. */
+export const clearTonight = () => edit((s) => ({ ...s, patch: undefined }))
 export const allDone = (s: Session, r: Recipe) => r.steps.length > 0 && r.steps.every((_, i) => s.steps.includes(i))
 /** The first step not done yet: what the cook should be looking at. */
 export const currentStep = (s: Session, r: Recipe) => r.steps.findIndex((_, i) => !s.steps.includes(i))
