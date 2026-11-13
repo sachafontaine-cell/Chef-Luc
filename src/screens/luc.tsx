@@ -73,7 +73,7 @@ export function LucSheet({ mode, ctx, onClose }: { mode: LucMode; ctx: Context; 
       const reply = parseReply(readJson(answerText(out)), ctx.recipe)
       if (!reply.answer && !reply.options.length) throw new LucError("Luc n'a pas répondu. Réessayez.")
       setPrev({ q, a: reply.answer })
-      setStage({ s: 'reply', q, reply, pick: 0 })
+      setStage({ s: 'reply', q, reply, pick: mode.kind === 'swap' && reply.options.length > 1 ? -1 : 0 })
     } catch (e) {
       setStage({ s: 'error', q, msg: e instanceof LucError ? e.message : 'Erreur inattendue.' })
     } finally { busy.current = false }
@@ -122,20 +122,27 @@ export function LucSheet({ mode, ctx, onClose }: { mode: LucMode; ctx: Context; 
         ? <div class="answer err">Ajoutez d'abord votre clé Gemini.<button class="btn btn-secondary btn-sm press" onClick={() => { onClose(); go('#/settings') }}>Aller aux Réglages</button></div>
         : <div class="answer err">{stage.msg}<button class="btn btn-secondary btn-sm press" onClick={() => run(stage.q)}>Réessayer</button></div>)}
       {stage.s === 'reply' && <>
-        {stage.reply.answer && <div class="answer">{stage.reply.answer}</div>}
-        {mode.kind === 'swap' ? stage.reply.options.map((o) => (
-          // A swap is for what is on the stove now: one tap replaces the line in Cuisiner.
-          <div class="card card-pad stack">
+        {/* In a swap the choices below already say it all. */}
+        {stage.reply.answer && !(mode.kind === 'swap' && stage.reply.options.length) && <div class="answer">{stage.reply.answer}</div>}
+        {mode.kind === 'swap' ? (stage.pick < 0 ? <>
+          {/* Step 1: just the choices, all on one screen. */}
+          <div class="label">Choisissez un remplaçant</div>
+          {stage.reply.options.map((o, i) => (
+            <button class="option press" onClick={() => setStage({ ...stage, pick: i })}>
+              <b>{o.title}</b>{o.why && <span class="muted">{o.why}</span>}
+            </button>))}
+        </> : (() => {
+          // Step 2: the chosen substitute, then use it tonight or keep it in the recipe.
+          const o = stage.reply.options[stage.pick]
+          return <div class="card card-pad stack">
             <div><b>{o.title}</b>{o.why && <div class="muted">{o.why}</div>}</div>
             {(o.patch.mise ?? []).map((e) => <div class="new">{e.text}</div>)}
             {(o.patch.steps ?? []).map((e) => <div class="new"><b>{e.label || ctx.recipe.steps[e.i]?.label}. </b>{e.text}</div>)}
             <button class="btn btn-primary press" onClick={() => { addTonight(o.patch); onClose() }}>Utiliser ce soir</button>
-            <div class="row links">
-              <button class="link" onClick={() => setStage({ ...stage, pick: stage.reply.options.indexOf(o), s: 'save', summary: o.title })}>Garder aussi dans la recette…</button>
-              <button class="link" onClick={() => setStage({ ...stage, pick: stage.reply.options.indexOf(o), s: 'rule', rule: o.rule || o.title })}>En faire une règle…</button>
-            </div>
+            <button class="btn btn-secondary press" onClick={() => setStage({ ...stage, s: 'save', summary: o.title })}>Garder dans la recette…</button>
+            {stage.reply.options.length > 1 && <button class="link" onClick={() => setStage({ ...stage, pick: -1 })}>← Autres remplaçants</button>}
           </div>
-        )) : <>
+        })()) : <>
           {stage.reply.options.length > 1 && <div class="stack">{stage.reply.options.map((o, i) => (
             <button class={`option press${stage.pick === i ? ' on' : ''}`} aria-pressed={stage.pick === i} onClick={() => setStage({ ...stage, pick: i })}>
               <b>{o.title}</b>{o.why && <span class="muted">{o.why}</span>}
