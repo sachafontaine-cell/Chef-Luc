@@ -13,7 +13,7 @@ Cooking a recipe needs no AI and no network.
 - **Chef Luc (Gemini, optional)**: ⇄ on a mise line ("Il me manque…") and *Demander à Luc*. A proposed change can be
   used **Juste ce soir**, saved to the recipe (new version, undo on the recipe page) or turned into a rule
   (both confirmed first).
-- **Courses**: the coming dinners from the Fontaine Control Center, extra recipes, batch-prep ideas (one AI call),
+- **Épicerie**: the coming dinners from the Fontaine Control Center, extra recipes, batch-prep ideas (one AI call),
   the merged list by store (pantry left out), sent to Cozi in one tap, or copied / shared. Dinners already sent from
   either app are marked and need a confirmation to resend.
 - **Réglages**: rules, Gemini key, family (birthdays), tools, pantry, store order, backup.

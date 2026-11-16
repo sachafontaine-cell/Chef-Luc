@@ -107,7 +107,7 @@ export function readJson(text: string): unknown {
   try { return JSON.parse(text.slice(start, end + 1)) } catch { return undefined }
 }
 
-// ---- Batch prep: one call per set of recipes (cached by the Courses tab).
+// ---- Batch prep: one call per set of recipes (cached by the Épicerie tab).
 
 export const PREP_SCHEMA = { type: 'OBJECT', properties: { tips: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['tips'] }
 

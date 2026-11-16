@@ -209,7 +209,7 @@ svg { width: 24px; height: 24px; flex-shrink: 0; }
 .kv .iconbtn { width: 44px; height: 44px; font-size: 20px; }
 label.btn { cursor: pointer; }
 
-/* Step 3: Courses */
+/* Step 3: Épicerie */
 .meal, .item { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); }
 .meal:last-child, .item:last-child { border-bottom: 0; }
 .meal .check-main, .item .check-main { flex: 1; min-width: 0; }
