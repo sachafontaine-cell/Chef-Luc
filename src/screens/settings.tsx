@@ -90,7 +90,7 @@ function StoresSheet({ onClose }: { onClose: () => void }) {
           <button class="iconbtn press" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Monter ${st}`}>↑</button>
           <button class="iconbtn press" disabled={i === list.length - 1} onClick={() => move(i, 1)} aria-label={`Descendre ${st}`}>↓</button>
         </div>))}</div>
-      <div class="muted">Les articles vont dans le 1er magasin ; les produits de spécialité (tahini, sauce poisson…) dans celui marqué « Spécialités ». Un article peut aussi changer de magasin dans Courses.</div>
+      <div class="muted">Les articles vont dans le 1er magasin ; les produits de spécialité (tahini, sauce poisson…) dans celui marqué « Spécialités ». Un article peut aussi changer de magasin dans Épicerie.</div>
     </Sheet>
   )
 }

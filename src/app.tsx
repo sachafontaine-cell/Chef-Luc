@@ -17,7 +17,7 @@ export function App() {
   const tab = r.name === 'recipe' || r.name === 'dish' ? 'recipes' : r.name
   const tabs = [
     ['recipes', '#/', 'Recettes', Icon.book], ['cook', '#/cook', 'Cuisiner', Icon.pot],
-    ['shop', '#/shop', 'Courses', Icon.cart], ['settings', '#/settings', 'Réglages', Icon.gear],
+    ['shop', '#/shop', 'Épicerie', Icon.cart], ['settings', '#/settings', 'Réglages', Icon.gear],
   ] as const
   return (
     <div class="shell">

@@ -1,4 +1,4 @@
-// The Courses tab's own memory: which dinners are picked, extra recipes, what you already have,
+// The Épicerie tab's own memory: which dinners are picked, extra recipes, what you already have,
 // store changes, and the batch-prep tips (one AI call per set of recipes).
 import { createStore } from './store'
 

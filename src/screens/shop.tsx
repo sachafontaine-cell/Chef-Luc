@@ -1,4 +1,4 @@
-// Courses: the coming dinners (from the Control Center), extra recipes, batch-prep tips, and the
+// Épicerie: the coming dinners (from the Control Center), extra recipes, batch-prep tips, and the
 // merged shopping list, sent to Cozi in one tap (or copied / shared).
 import { useEffect, useState } from 'preact/hooks'
 import { Icon, Sheet } from '../ui'
@@ -118,13 +118,13 @@ export function Shop() {
     try { await navigator.clipboard.writeText(text()); setCopied('Liste copiée.') } catch { setCopied('Copie impossible.') }
     setTimeout(() => setCopied(''), 2500)
   }
-  const shareList = async () => { try { await navigator.share({ title: 'Courses', text: text() }) } catch { /* cancelled */ } }
+  const shareList = async () => { try { await navigator.share({ title: 'Épicerie', text: text() }) } catch { /* cancelled */ } }
   const cycleStore = (it: Item) => { const i = cfg.stores.indexOf(it.store); setStore(it.key, cfg.stores[(i + 1) % cfg.stores.length]) }
 
   return (
     <>
       <div class="main"><div class="stack">
-        <h1 class="headline">Courses</h1>
+        <h1 class="headline">Épicerie</h1>
 
         <section>
           <h2 class="label">Repas à venir</h2>
