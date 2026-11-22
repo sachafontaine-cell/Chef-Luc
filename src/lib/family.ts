@@ -110,6 +110,19 @@ export async function coziListNames(): Promise<string[] | null> {
   } catch { return null }
 }
 
+/**
+ * Which version of the family script is running. With the loader (pasted once), the script updates
+ * itself from Drive: `auto` is true. An older script answers with its usual data instead.
+ */
+export async function scriptVersion(): Promise<{ auto: boolean; version?: string } | null> {
+  const key = familyKey()
+  if (!key || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null
+  try {
+    const j = await (await fetch(`${api()}?k=${encodeURIComponent(key)}&a=version`, { cache: 'no-store' })).json()
+    return j?.loader ? { auto: true, version: j.version } : { auto: false }
+  } catch { return null }
+}
+
 /** Store names that are not (or no longer) a Cozi list. */
 export const missingStores = (stores: string[], lists: string[]) => stores.filter((s) => !lists.includes(s))
 
