@@ -4,7 +4,7 @@ import { Icon, Sheet } from '../ui'
 import { age, DEFAULT_RULES, kidShare, lines, settings, type Member, type Settings as S } from '../lib/settings'
 import { answerText, flashModels, generate, LucError, withModels } from '../lib/gemini'
 import { backupName, makeBackup, readBackup, restoreBackup, type Backup } from '../lib/backup'
-import { coziListNames, familyKey, missingStores } from '../lib/family'
+import { coziListNames, familyKey, missingStores, scriptVersion } from '../lib/family'
 import { specialtyStore } from '../lib/shopping'
 import { versions } from '../lib/versions'
 import { applyUpdate, checkForUpdate } from '../lib/update'
@@ -207,6 +207,10 @@ export function Settings() {
   const s = settings.use(), all = versions.use()
   const [open, setOpen] = useState<Open>(null)
   const [upd, setUpd] = useState('')
+  const [script, setScript] = useState('…')
+  useEffect(() => {
+    scriptVersion().then((v) => setScript(!v ? 'Inconnu (hors ligne ?)' : v.auto ? `v${v.version} · à jour tout seul` : 'Mise à jour à la main'))
+  }, [])
   const check = async () => {
     setUpd('…')
     const fresh = await checkForUpdate()
@@ -233,6 +237,7 @@ export function Settings() {
       <div><div class="label">Données</div><div class="card">
         {row('backup', 'Sauvegarde', edited ? plural(edited, 'recette modifiée', 'recettes modifiées') : 'Exporter, importer')}
         <div class="kv"><span class="k">Lien famille (Control Center)</span><span class="v">{familyKey() ? 'Trouvé' : 'Absent'}</span></div>
+        {familyKey() && <div class="kv"><span class="k">Script Google</span><span class="v">{script}</span></div>}
         <div class="kv"><span class="k">Version</span><span class="row ver"><span class="muted">{upd}</span><span class="num">{__VERSION__}</span><button class={`refresh press${upd === '…' ? ' spin' : ''}`} onClick={check} aria-label="Chercher une mise à jour"><Icon.refresh /></button></span></div>
       </div></div>
 
