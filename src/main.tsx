@@ -4,6 +4,7 @@ import { App } from './app'
 import { startEngine } from './lib/engine'
 import { session } from './lib/session'
 import { refreshFamily, refreshLibrary } from './lib/family'
+import { migrateLocalVersions } from './lib/edits'
 import { setHomeCheck, startUpdates } from './lib/update'
 
 // A recipe was being cooked when the app closed: come straight back to it.
@@ -16,5 +17,5 @@ render(<App />, document.getElementById('app')!)
 setHomeCheck(() => !session.get())
 startUpdates()
 refreshFamily()
-refreshLibrary()
+refreshLibrary().then(migrateLocalVersions)
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshFamily(); refreshLibrary() } })

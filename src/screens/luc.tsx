@@ -9,7 +9,8 @@ import { askBody, parseReply, readJson, swapQuestion, type Context, type Option,
 import { ingredientsIn } from '../lib/ingredients'
 import { addTonight } from '../lib/session'
 import { recipe as baseRecipe } from '../lib/recipes'
-import { saveVersion } from '../lib/versions'
+import { current } from '../lib/versions'
+import { saveToRecipe } from '../lib/edits'
 import { go } from '../lib/engine'
 
 export type LucMode = { kind: 'ask' } | { kind: 'swap'; line: number }
@@ -20,7 +21,7 @@ type Stage =
   | { s: 'wait'; q: string }
   | { s: 'error'; q: string; msg: string }
   | { s: 'reply'; q: string; reply: Reply; pick: number }
-  | { s: 'save'; q: string; reply: Reply; pick: number; summary: string }
+  | { s: 'save'; q: string; reply: Reply; pick: number; summary: string; busy?: boolean; err?: string }
   | { s: 'rule'; q: string; reply: Reply; pick: number; rule: string }
   | { s: 'done'; msg: string }
 
@@ -99,11 +100,17 @@ export function LucSheet({ mode, ctx, onClose }: { mode: LucMode; ctx: Context; 
   } else if (stage.s === 'save') {
     const o = stage.reply.options[stage.pick]
     body = <>
-      <div class="text">Enregistrer dans « {ctx.recipe.title} » ? Cela crée une nouvelle version ; l'ancienne reste disponible sur la page de la recette.</div>
+      <div class="text">Enregistrer dans « {ctx.recipe.title} » ? La fiche est modifiée dans Drive (pour Chef Luc, le Control Center et les fiches imprimées) ; l'ancienne version reste disponible sur la page de la recette.</div>
       <Changes option={o} ctx={ctx} />
       <label class="stack"><span class="label">Nom de la version</span><input class="field" value={stage.summary} onInput={(e) => setStage({ ...stage, summary: (e.target as HTMLInputElement).value })} /></label>
+      {stage.err && <div class="answer err">Pas enregistrée : {stage.err}.</div>}
     </>
-    foot = <><button class="btn btn-secondary grow press" onClick={() => setStage({ ...stage, s: 'reply' })}>Annuler</button><button class="btn btn-primary grow press" onClick={() => { saveVersion(base, o.patch, stage.summary); setStage({ s: 'done', msg: 'Recette enregistrée (nouvelle version).' }) }}>Confirmer</button></>
+    const confirm = async () => {
+      setStage({ ...stage, busy: true, err: undefined })
+      try { await saveToRecipe(current(base), o.patch, stage.summary); setStage({ s: 'done', msg: 'Fiche modifiée dans Drive.' }) }
+      catch (e) { setStage({ ...stage, busy: false, err: (e as Error).message }) }
+    }
+    foot = <><button class="btn btn-secondary grow press" disabled={stage.busy} onClick={() => setStage({ ...stage, s: 'reply' })}>Annuler</button><button class="btn btn-primary grow press" disabled={stage.busy} onClick={confirm}>{stage.busy ? <><span class="spinner" />Enregistrement…</> : 'Confirmer'}</button></>
   } else if (stage.s === 'rule') {
     body = <>
       <div class="text">Ajouter cette règle à vos règles de Chef Luc ? Elle s'appliquera à toutes les recettes.</div>
