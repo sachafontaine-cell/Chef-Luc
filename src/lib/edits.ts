@@ -1,5 +1,5 @@
 // "Garder dans la recette": a change is saved in the family recipe file in Drive (the one card both
-// apps and the printed cards come from). The wording it replaces stays in the recipe's history there.
+// apps and the printed cards come from). The new text replaces the old one; no history is kept.
 import { familyAction, familyKey, refreshLibrary } from './family'
 import type { Recipe, Step } from './recipes'
 import { applyPatch, versions, type Patch } from './versions'
@@ -15,12 +15,6 @@ export async function saveEdit(number: number, mise: string[], steps: Step[], su
 export const saveToRecipe = (r: Recipe, patch: Patch, summary: string) => {
   const next = applyPatch(r, patch)
   return saveEdit(r.number, next.mise, next.steps, summary)
-}
-
-/** Brings back an earlier wording from the recipe's history (the current one goes into the history). */
-export const restoreWording = (r: Recipe, i: number) => {
-  const h = r.history[i]
-  return saveEdit(r.number, h.mise, h.steps, `Rétabli : ${h.summary}`)
 }
 
 /**

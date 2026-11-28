@@ -100,7 +100,7 @@ export function LucSheet({ mode, ctx, onClose }: { mode: LucMode; ctx: Context; 
   } else if (stage.s === 'save') {
     const o = stage.reply.options[stage.pick]
     body = <>
-      <div class="text">Enregistrer dans « {ctx.recipe.title} » ? La fiche est modifiée dans Drive (pour Chef Luc, le Control Center et les fiches imprimées) ; l'ancienne version reste disponible sur la page de la recette.</div>
+      <div class="text">Enregistrer dans « {ctx.recipe.title} » ? La fiche est modifiée dans Drive (pour Chef Luc, le Control Center et les fiches imprimées). Le nouveau texte remplace l'ancien.</div>
       <Changes option={o} ctx={ctx} />
       <label class="stack"><span class="label">Nom de la version</span><input class="field" value={stage.summary} onInput={(e) => setStage({ ...stage, summary: (e.target as HTMLInputElement).value })} /></label>
       {stage.err && <div class="answer err">Pas enregistrée : {stage.err}.</div>}

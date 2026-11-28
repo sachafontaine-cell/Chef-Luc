@@ -24,8 +24,6 @@ export interface Recipe {
   steps: Step[]
   notes: string[]
   image: string
-  /** Earlier wordings, newest first (from the recipe file). */
-  history: { at: string; summary: string; mise: string[]; steps: Step[] }[]
   /** Last change saved from Chef Luc: date and name. */
   edited: string
   editNote: string
@@ -77,7 +75,6 @@ interface Raw {
   tools: string[]; mise: string[]; steps: Step[]; notes: string[]; image?: string
   /** Photo of a recipe added from the app (small JPEG). */
   image_data?: string
-  history?: { at?: string; summary?: string; mise?: string[]; steps?: Step[] }[]
   edited?: string; edit_note?: string
   ingredient_groups: { label: string; items: string[] }[]
 }
@@ -93,7 +90,6 @@ function derive(r: Raw): Recipe {
     tools: (r.tools || []).flatMap((t) => t.split(/,(?![^(]*\))/).map((x) => x.trim()).filter(Boolean)),
     mise, miseLabel: group && !/^mise/i.test(group.label) ? group.label : 'Mise en place',
     steps: r.steps || [], notes: r.notes || [], image: r.image_data || (r.image ? import.meta.env.BASE_URL + r.image : ''),
-    history: (Array.isArray(r.history) ? r.history : []).filter((h) => h && Array.isArray(h.steps)).map((h) => ({ at: String(h.at || ''), summary: String(h.summary || ''), mise: h.mise || [], steps: h.steps! })),
     edited: r.edited || '', editNote: r.edit_note || '',
     activeMin: m ? +m[1] : null, wash: d.wash, washCount: d.count, group: groupOf(r.category),
     search: fold([r.title, String(r.number), ...mise].join(' ')),
