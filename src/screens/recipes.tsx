@@ -1,3 +1,4 @@
+import { hideImg } from '../ui'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Chips, Icon, Sheet } from '../ui'
 import { createStore } from '../lib/store'
@@ -18,7 +19,7 @@ function Tonight() {
   const cooking = !!r && s?.recipe === r.number
   return (
     <div class="card tonight">
-      {r && <span class="pic rthumb"><img src={photo(r)} alt="" width="96" height="72" /></span>}
+      {r && <span class="pic rthumb">{photo(r) && <img onError={hideImg} src={photo(r)} alt="" width="96" height="72" />}</span>}
       <button class="grow press left" onClick={() => r && go(`#/r/${r.number}`)} disabled={!r}>
         <span class="mday">Ce soir · {d.cook}</span><span class="mdish">{d.dish}</span>
       </button>
@@ -42,7 +43,7 @@ export function Row({ r }: { r: Recipe }) {
   const meta = [groupLabel(r), r.activeMin != null ? `${r.activeMin} min actif` : '', washLabel(r)].filter(Boolean)
   return (
     <button class="rrow press" onClick={() => go(`#/r/${r.number}`)}>
-      <span class="pic rthumb"><img src={photo(r)} alt="" loading="lazy" width="96" height="72" /></span>
+      <span class="pic rthumb">{photo(r) && <img onError={hideImg} src={photo(r)} alt="" loading="lazy" width="96" height="72" />}</span>
       <span class="grow">
         <span class="rtitle"><span class="rnum num">{pad(r.number)}</span> {r.title}</span>
         <span class="rmeta">{meta.join(' · ')}</span>
@@ -73,6 +74,7 @@ export function Recipes() {
         <Tonight />
         <div class="row">
           <label class="searchbox grow"><Icon.search /><input type="search" class="field" placeholder="Titre ou ingrédient" autocomplete="off" enterkeyhint="search" value={q.q} onInput={(e) => set({ q: (e.target as HTMLInputElement).value })} aria-label="Chercher une recette" /></label>
+          <button class="iconbtn press plus" onClick={() => go('#/add')} aria-label="Ajouter une recette">+</button>
           <button class={`iconbtn press${extra ? ' on' : ''}`} onClick={() => setFilters(true)} aria-label="Trier et filtrer"><Icon.sliders />{extra > 0 && <span class="count num">{extra}</span>}</button>
         </div>
         {prots.length > 0 && (

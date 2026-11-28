@@ -56,3 +56,6 @@ export function Stepper({ label, hint, value, min, max, step = 1, show, onChange
     </div>
   )
 }
+
+/** A photo that cannot load leaves the plain tile. */
+export const hideImg = (e: Event) => { (e.currentTarget as HTMLElement).style.visibility = 'hidden' }

@@ -1,7 +1,12 @@
-// The recipe library: the card file exactly as exported to Drive, plus what the app derives
-// from it once at startup (minutes, dishes to wash, search text). Replacing recipes.json with
-// a newer card file is all it takes to update the library.
+// The recipe library: the card file exactly as kept in Drive ("Recipes AI-ready" folder), plus what
+// the app derives from it (minutes, dishes to wash, search text).
+// A copy is built in, so the app works offline from the first launch; when the family script has a
+// newer chef_luc_recipes_vN.json, that one replaces it (and is kept on the phone).
 import raw from '../data/recipes.json'
+import { createStore } from './store'
+
+/** The version of the built-in copy (src/data/recipes.json). */
+export const BUNDLED_VERSION = 16
 
 export interface Step { label: string; text: string }
 export interface Recipe {
@@ -64,31 +69,62 @@ export function dishes(tools: string[]): { wash: string[]; count: number } {
 
 interface Raw {
   number: number; title: string; category: string; yield: string; active: string; total: string; household: boolean
-  tools: string[]; mise: string[]; steps: Step[]; notes: string[]; image: string
+  tools: string[]; mise: string[]; steps: Step[]; notes: string[]; image?: string
+  /** Photo of a recipe added from the app (small JPEG). */
+  image_data?: string
   ingredient_groups: { label: string; items: string[] }[]
 }
 
 function derive(r: Raw): Recipe {
   // Household mixes have no "mise en place": their ingredients sit in a group of their own.
-  const group = r.ingredient_groups.find((g) => !/^tools$/i.test(g.label))
-  const mise = r.mise.length ? r.mise : group ? group.items : []
-  const m = r.active.match(/^(\d+) min/)
-  const d = dishes(r.tools)
+  const group = (r.ingredient_groups || []).find((g) => !/^tools$/i.test(g.label))
+  const mise = r.mise?.length ? r.mise : group ? group.items : []
+  const m = (r.active || '').match(/^(\d+) min/)
+  const d = dishes(r.tools || [])
   return {
     number: r.number, title: r.title, category: r.category, yield: r.yield, active: r.active, total: r.total, household: r.household,
-    tools: r.tools.flatMap((t) => t.split(/,(?![^(]*\))/).map((x) => x.trim()).filter(Boolean)),
+    tools: (r.tools || []).flatMap((t) => t.split(/,(?![^(]*\))/).map((x) => x.trim()).filter(Boolean)),
     mise, miseLabel: group && !/^mise/i.test(group.label) ? group.label : 'Mise en place',
-    steps: r.steps, notes: r.notes, image: r.image,
+    steps: r.steps || [], notes: r.notes || [], image: r.image_data || (r.image ? import.meta.env.BASE_URL + r.image : ''),
     activeMin: m ? +m[1] : null, wash: d.wash, washCount: d.count, group: groupOf(r.category),
     search: fold([r.title, String(r.number), ...mise].join(' ')),
   }
 }
 
-export const RECIPES: Recipe[] = (raw as Raw[]).map(derive).sort((a, b) => a.number - b.number)
-const byNumber = new Map(RECIPES.map((r) => [r.number, r]))
+/** The current list. Replaced in place when a newer recipe file arrives, so every import sees it. */
+export const RECIPES: Recipe[] = []
+const byNumber = new Map<number, Recipe>()
+/** Changes whenever the list is replaced (screens subscribe to it to redraw). */
+export const library = createStore({ version: BUNDLED_VERSION })
+/** The newest list read from Drive, kept on the phone for offline use. */
+const saved = createStore<{ version: number; raw: unknown[] } | null>(null, 'library')
+
+const usable = (r: any): r is Raw => !!r && Number.isInteger(r.number) && typeof r.title === 'string' && Array.isArray(r.steps)
+export function setLibrary(list: unknown[], version: number) {
+  const next = list.filter(usable).map(derive).sort((a, b) => a.number - b.number)
+  if (!next.length) return
+  RECIPES.splice(0, RECIPES.length, ...next)
+  byNumber.clear()
+  next.forEach((r) => byNumber.set(r.number, r))
+  library.set({ version })
+}
+/** A newer recipe file from Drive: use it now and keep it for next time. */
+export function useRemoteLibrary(list: unknown[], version: number) {
+  if (version <= library.get().version || !Array.isArray(list)) return false
+  setLibrary(list, version)
+  saved.set({ version, raw: list })
+  return true
+}
+
+setLibrary(raw as unknown[], BUNDLED_VERSION)
+const kept = saved.get()
+if (kept && kept.version > BUNDLED_VERSION && Array.isArray(kept.raw)) setLibrary(kept.raw, kept.version)
+
 export const recipe = (n: number) => byNumber.get(n)
+export const recipeByTitle = (title: string) => (title ? RECIPES.find((r) => fold(r.title) === fold(title)) : undefined)
 export const pad = (n: number) => String(n).padStart(3, '0')
-export const photo = (r: Recipe) => import.meta.env.BASE_URL + r.image
+/** The recipe's photo, or '' when it has none (the tile then stays plain). */
+export const photo = (r: Recipe) => r.image
 
 export type Sort = 'number' | 'active' | 'wash' | 'old'
 export interface Query { q: string; groups: Group[]; prot: string[]; cui: string[]; style: string[]; kid: boolean; sort: Sort }

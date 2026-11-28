@@ -1,7 +1,7 @@
 import { Icon } from './ui'
 import { route, go } from './lib/engine'
 import { session } from './lib/session'
-import { recipe } from './lib/recipes'
+import { library, recipe } from './lib/recipes'
 import { current, versions } from './lib/versions'
 import { Recipes } from './screens/recipes'
 import { RecipePage } from './screens/recipe'
@@ -9,12 +9,14 @@ import { Cook } from './screens/cook'
 import { TimerDock } from './screens/timers'
 import { Shop, recipeForDish } from './screens/shop'
 import { Settings } from './screens/settings'
+import { AddRecipe } from './screens/add'
 
 export function App() {
   const r = route.use(), s = session.use(), all = versions.use()
+  library.use()
   const base = r.name === 'recipe' ? recipe(r.id!) : r.name === 'dish' ? recipeForDish(r.title!) : undefined
   const found = base && current(base, all)
-  const tab = r.name === 'recipe' || r.name === 'dish' ? 'recipes' : r.name
+  const tab = r.name === 'recipe' || r.name === 'dish' || r.name === 'add' ? 'recipes' : r.name
   const tabs = [
     ['recipes', '#/', 'Recettes', Icon.book], ['cook', '#/cook', 'Cuisiner', Icon.pot],
     ['shop', '#/shop', 'Épicerie', Icon.cart], ['settings', '#/settings', 'Réglages', Icon.gear],
@@ -23,6 +25,7 @@ export function App() {
     <div class="shell">
       {(r.name === 'recipe' || r.name === 'dish') && found ? <RecipePage key={found.number} recipe={found} />
         : r.name === 'dish' ? <div class="main"><div class="empty">Pas de fiche Chef Luc pour « {r.title} ».<button class="btn btn-primary press" onClick={() => go('#/')}>Voir les recettes</button></div></div>
+        : r.name === 'add' ? <AddRecipe />
         : r.name === 'cook' ? <Cook />
         : r.name === 'shop' ? <Shop />
         : r.name === 'settings' ? <Settings />

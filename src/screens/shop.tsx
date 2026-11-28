@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { Icon, Sheet } from '../ui'
 import { comingDinners, coziListNames, family, familyAction, familyKey, missingStores, refreshFamily, sentFor, type Dinner } from '../lib/family'
-import { emptyQuery, fold, pad, RECIPES, recipe as findRecipe, search, type Recipe } from '../lib/recipes'
+import { emptyQuery, fold, pad, RECIPES, recipe as findRecipe, recipeByTitle, search, type Recipe } from '../lib/recipes'
 import { current, versions } from '../lib/versions'
 import { factor } from '../lib/portions'
 import { drafts, portionsFor } from '../lib/session'
@@ -14,8 +14,7 @@ import { answerText, generate, LucError, withModels } from '../lib/gemini'
 import { parsePrep, prepBody, readJson } from '../lib/luc'
 import { go } from '../lib/engine'
 
-const byTitle = new Map(RECIPES.map((r) => [fold(r.title), r]))
-export const recipeForDish = (dish: string) => (dish ? byTitle.get(fold(dish)) : undefined)
+export const recipeForDish = (dish: string) => recipeByTitle(dish)
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 export const ymdLocal = (d = new Date()) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`

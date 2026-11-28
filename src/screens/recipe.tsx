@@ -1,3 +1,4 @@
+import { hideImg } from '../ui'
 import { useState } from 'preact/hooks'
 import { Icon } from '../ui'
 import { pad, photo, type Recipe } from '../lib/recipes'
@@ -32,7 +33,7 @@ export function RecipePage({ recipe: r }: { recipe: Recipe }) {
         <div class="stack">
           <button class="back press" onClick={() => (history.length > 1 ? history.back() : go('#/'))}><Icon.back />Recettes</button>
           <div class="row rhead">
-            <span class="pic rphoto"><img src={photo(r)} alt="" width="120" height="90" /></span>
+            <span class="pic rphoto">{photo(r) && <img onError={hideImg} src={photo(r)} alt="" width="120" height="90" />}</span>
             <div class="grow"><div class="rnum num">{pad(r.number)}</div><h1 class="headline">{r.title}</h1></div>
           </div>
           <div class="muted">{meta.join(' · ')}</div>
