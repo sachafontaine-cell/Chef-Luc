@@ -27,7 +27,7 @@ Cooking a recipe needs no AI and no network.
 | Dinners of the week | Fontaine Control Center → Repas |
 | Portions for one cooking session | The Portions sheet (recipe page or Cook mode) |
 | Rules, family, tools, pantry, stores, Gemini key | Réglages |
-| A recipe's saved changes | Its page → Versions (use any version, or the original card) |
+| A recipe's saved changes | "Garder dans la recette" saves into the recipe file in Drive (family script v1.5.0); its page → Versions brings back an earlier wording |
 | Dish tags, menu, who cooks | Fontaine Control Center (Recettes sheet, Repas) |
 
 The Gemini key and everything typed in Réglages stay on the phone (backup file: Réglages → Sauvegarde, without the key).
