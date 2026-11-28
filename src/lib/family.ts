@@ -4,7 +4,7 @@
 // dinners, which dinners already went to Cozi, and sending to Cozi.
 // Without the key, Chef Luc works the same, minus those.
 import { createStore } from './store'
-import { fold, type Facet, type Facets } from './recipes'
+import { fold, library, useRemoteLibrary, type Facet, type Facets } from './recipes'
 
 const DEFAULT_API = 'https://script.google.com/macros/s/AKfycbyqk4Wwqj7C2pxTX6XD_UjwMJEgzaooRA6A-zTXOYjN92Lu7v6szQhilxJrP4fr2z6hEA/exec'
 const STALE_MS = 6 * 3600000
@@ -121,6 +121,23 @@ export async function scriptVersion(): Promise<{ auto: boolean; version?: string
     const j = await (await fetch(`${api()}?k=${encodeURIComponent(key)}&a=version`, { cache: 'no-store' })).json()
     return j?.loader ? { auto: true, version: j.version } : { auto: false }
   } catch { return null }
+}
+
+let libraryAt = 0
+/**
+ * Picks up a newer recipe file from Drive (cards added in Chef Luc or by the card kit).
+ * A cheap version check first; the full list only when it changed.
+ */
+export async function refreshLibrary(force = false, now = Date.now()) {
+  const key = familyKey()
+  if (!key || (!force && now - libraryAt < 10 * 60000) || (typeof navigator !== 'undefined' && navigator.onLine === false)) return
+  libraryAt = now
+  try {
+    const v = await (await fetch(`${api()}?k=${encodeURIComponent(key)}&a=recipesVersion`, { cache: 'no-store' })).json()
+    if (!(+v?.version > library.get().version)) return
+    const j = await (await fetch(`${api()}?k=${encodeURIComponent(key)}&a=recipes`, { cache: 'no-store' })).json()
+    if (j && Array.isArray(j.recipes)) useRemoteLibrary(j.recipes, +j.version)
+  } catch { /* offline or old script: keep the list we have */ }
 }
 
 /** Store names that are not (or no longer) a Cozi list. */

@@ -17,11 +17,13 @@ Cooking a recipe needs no AI and no network.
   the merged list by store (pantry left out), sent to Cozi in one tap, or copied / shared. Dinners already sent from
   either app are marked and need a confirmation to resend.
 - **Réglages**: rules, Gemini key, family (birthdays), tools, pantry, store order, backup.
+- **New recipes**: Recettes → **+**. Paste a recipe or photograph it; Luc writes the card with your rules; after a check it is saved
+  in the family recipe file in Drive ("Recipes AI-ready"), and a main dish joins the Control Center's Recettes sheet.
 
 ## Where to change what
 | Thing | Change it in |
 |---|---|
-| Recipes | Replace `src/data/recipes.json` with the newest `chef_luc_recipes_v*.json`, photos in `public/thumbs/` |
+| Recipes | The newest `chef_luc_recipes_vN.json` in Drive ("Recipes AI-ready"): the app picks it up by itself. The built-in copy (`src/data/recipes.json`, `BUNDLED_VERSION` in `src/lib/recipes.ts`, photos in `public/thumbs/`) only matters for a first install offline |
 | Dinners of the week | Fontaine Control Center → Repas |
 | Portions for one cooking session | The Portions sheet (recipe page or Cook mode) |
 | Rules, family, tools, pantry, stores, Gemini key | Réglages |

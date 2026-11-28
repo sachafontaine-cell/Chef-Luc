@@ -3,7 +3,7 @@ import './styles.css'
 import { App } from './app'
 import { startEngine } from './lib/engine'
 import { session } from './lib/session'
-import { refreshFamily } from './lib/family'
+import { refreshFamily, refreshLibrary } from './lib/family'
 import { setHomeCheck, startUpdates } from './lib/update'
 
 // A recipe was being cooked when the app closed: come straight back to it.
@@ -16,4 +16,5 @@ render(<App />, document.getElementById('app')!)
 setHomeCheck(() => !session.get())
 startUpdates()
 refreshFamily()
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshFamily() })
+refreshLibrary()
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { refreshFamily(); refreshLibrary() } })

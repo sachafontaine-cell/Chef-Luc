@@ -128,3 +128,103 @@ export function parsePrep(raw: unknown): string[] {
   const t = (raw as { tips?: unknown })?.tips
   return (Array.isArray(t) ? t : []).map((x) => String(x).trim()).filter(Boolean).slice(0, 8)
 }
+
+// ---- New recipe: Luc turns pasted text or photos into a Chef Luc card (one call, plus one per correction).
+
+export const CATEGORIES = ['Main', 'Main (vegetarian)', 'Side', 'Soup', 'Dessert', 'Breakfast', 'Sauce', 'Dip', 'Batch', 'Basic'] as const
+// The Control Center's own lists (its Recettes sheet), so a new main dish can be voted for and filtered.
+export const PROTEINS = ['Poulet', 'Bœuf', 'Porc', 'Agneau', 'Dinde', 'Poisson', 'Sans viande', 'Autre'] as const
+export const CUISINES = ['Libanais', 'Méditerranéen', 'Français', 'Italien', 'Américain', 'Mexicain', 'Latino', 'Asiatique', 'Indien'] as const
+export const STYLES = ['Rapide', 'Instant Pot', 'Grill', 'Four', 'Mijoté', 'Soupe', 'Salade', 'Sandwich', 'Pâtes', 'Riz', 'Nouilles'] as const
+export interface Card {
+  title: string; category: string; yield: string; active: string; total: string
+  tools: string[]; mise: string[]; steps: { label: string; text: string }[]; notes: string[]
+  /** For the cook, in French: what Luc changed or had to guess. */
+  remarks: string
+  /** For the Control Center's Recettes sheet. */
+  protein: string; cuisine: string; styles: string[]; kid: boolean
+}
+
+const LIST = { type: 'ARRAY', items: { type: 'STRING' } }
+export const CARD_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    title: { type: 'STRING' }, category: { type: 'STRING', enum: [...CATEGORIES] }, yield: { type: 'STRING' }, active: { type: 'STRING' }, total: { type: 'STRING' },
+    tools: LIST, mise: LIST, steps: { type: 'ARRAY', items: { type: 'OBJECT', properties: { label: { type: 'STRING' }, text: { type: 'STRING' } }, required: ['label', 'text'] } },
+    notes: LIST, remarks: { type: 'STRING' },
+    protein: { type: 'STRING', enum: [...PROTEINS] }, cuisine: { type: 'STRING', enum: [...CUISINES] },
+    styles: { type: 'ARRAY', items: { type: 'STRING', enum: [...STYLES] } }, kid: { type: 'BOOLEAN' },
+  },
+  required: ['title', 'category', 'yield', 'active', 'total', 'tools', 'mise', 'steps', 'notes', 'remarks', 'protein', 'cuisine', 'styles', 'kid'],
+}
+
+/** The card a new recipe should look like (recipe 169, as kept in the recipe file). */
+const EXAMPLE: Omit<Card, 'remarks' | 'protein' | 'cuisine' | 'styles' | 'kid'> = {
+  title: 'Marry Me Chicken', category: 'Main', yield: 'Dinner 4 + 2 small lunches', active: '20 min Active', total: '50 min Total (rice)',
+  tools: ['Zojirushi rice cooker', '12" cast iron skillet', 'tongs', 'microplane', 'small bowl', 'garlic press', 'Meater'],
+  mise: [
+    'Thai jasmine white rice 300 g (2 rice cups)',
+    'Frozen garlic 4 cloves: set out to thaw',
+    'Boneless skinless chicken thighs 750 g (1⅔ lb, about 7): pat dry, season on the tray: salt 5 g (¾ tsp), smoked paprika 2 g (1 tsp), Italian seasoning 2 g (1 tsp), pepper 1 g (½ tsp)',
+    'Julienned sun-dried tomatoes 70 g (½ cup, packed in oil): drain, keep 15 g (1 tbsp) of the oil',
+    'Parmigiano-Reggiano wedge 50 g (½ cup grated); keep the rind',
+    'Chicken broth 180 ml (¾ cup); heavy cream 180 ml (¾ cup); red pepper flakes 0.5 g (¼ tsp)',
+    'Baby spinach 140 g (5 oz)',
+  ],
+  steps: [
+    { label: 'Rice', text: 'Rinse 300 g rice in the cooker pot, drain, water to line 2 (White). Start. Set the garlic out.' },
+    { label: 'Sear', text: 'Cast iron medium-high 3 min. Tomato oil, thighs smooth side down; leave 5 min (grate the parmesan). Flip, 4 min. Meater in; thighs to a plate.' },
+    { label: 'Sauce', text: 'Medium. Press in garlic; sun-dried tomatoes 1 min. Broth; scrape 30 sec. Cream, flakes, parmesan rind; simmer 3 min.' },
+    { label: 'Finish', text: 'Chicken + juices back. Simmer uncovered 6 min, spooning sauce, to 175°F (79°C).' },
+    { label: 'Greens', text: 'Off heat: rind out; parmesan, then spinach 1 min.' },
+    { label: 'Serve', text: 'Lunches: 75 g chicken (1 thigh) + sauce over rice, x2. MyPlate: balanced.' },
+  ],
+  notes: ['Rind = extra umami; thighs stay juicy; no board.'],
+}
+
+export function cardBody(s: Settings, source: { text: string; images: { mime: string; data: string }[] }, previous?: Card, fix?: string): Record<string, unknown> {
+  const task = `${systemText(s)}
+
+TASK: NEW RECIPE CARD
+The cook gives you a recipe (pasted text and/or photos of a page or screen). Rewrite it as a Chef Luc card following THE COOK'S RULES, in English, in exactly the style of the EXAMPLE.
+- title: the dish's usual English name.
+- category: one of ${CATEGORIES.join(', ')}.
+- yield: "Dinner 4 + 2 small lunches" for a family dinner, sized for the FAMILY plus 2 small next-day lunches (about 75 g protein each); otherwise "Serves …" or "Makes …".
+- active: "N min Active". total: "N min Total" or "N hr N min Total", with the reason in brackets when long, e.g. "(marinade)".
+- tools: short items, only from KITCHEN TOOLS or basic gear (board, knife, bowls). Fewest dishes possible.
+- mise: in order of use (clockwise on the board), washing included; each line "Ingredient grams g (kitchen or whole units): prep". Group a spice mix or a sauce on one line.
+- steps: short label + text, amounts and precise times and temperatures inside (no time ranges), prep at the most efficient moment.
+- notes: 0 to 2 short lines (why it works, a swap, MyPlate balance).
+- If the source is incomplete, fill in sensibly and say so in "remarks".
+- remarks: one or two short sentences in French for the cook: what you changed, scaled or guessed.
+- protein, cuisine, styles (1 to 3), kid (easy for children aged 8 to 10): tags for the family menu, from the allowed values only.
+
+EXAMPLE
+${JSON.stringify(EXAMPLE)}`
+  const parts: Record<string, unknown>[] = []
+  if (source.text.trim()) parts.push({ text: `RECIPE FROM THE COOK:\n${source.text.trim().slice(0, 12000)}` })
+  for (const im of source.images.slice(0, 4)) parts.push({ inline_data: { mime_type: im.mime, data: im.data } })
+  if (previous) parts.push({ text: `YOUR PREVIOUS CARD:\n${JSON.stringify({ ...previous, remarks: undefined })}\n\nCORRECTION FROM THE COOK (apply it, keep everything else): ${fix?.trim() || 'Improve it.'}` })
+  return {
+    systemInstruction: { parts: [{ text: task }] },
+    contents: [{ role: 'user', parts }],
+    generationConfig: { responseMimeType: 'application/json', responseSchema: CARD_SCHEMA, temperature: 0.3, maxOutputTokens: 6000 },
+  }
+}
+
+/** Keeps a usable card, or nothing. */
+export function parseCard(raw: unknown): Card | undefined {
+  const j = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>
+  const str = (v: unknown, max = 600) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
+  const list = (v: unknown) => (Array.isArray(v) ? v : []).map((x) => str(x)).filter(Boolean)
+  const steps = (Array.isArray(j.steps) ? j.steps : []).map((x: any) => ({ label: str(x?.label, 40) || 'Step', text: str(x?.text, 900) })).filter((x: { text: string }) => x.text)
+  const title = str(j.title, 120)
+  if (!title || !steps.length) return undefined
+  const category = (CATEGORIES as readonly string[]).includes(j.category) ? j.category : 'Main'
+  const pick = <T extends string>(v: unknown, from: readonly T[], or: T) => ((from as readonly string[]).includes(v as string) ? (v as T) : or)
+  return {
+    title, category, yield: str(j.yield, 80) || 'Dinner 4 + 2 small lunches', active: str(j.active, 40), total: str(j.total, 60), tools: list(j.tools), mise: list(j.mise), steps, notes: list(j.notes), remarks: str(j.remarks, 400),
+    protein: pick(j.protein, PROTEINS, 'Autre'), cuisine: pick(j.cuisine, CUISINES, 'Américain'),
+    styles: [...new Set(list(j.styles).filter((x) => (STYLES as readonly string[]).includes(x)))].slice(0, 3), kid: j.kid === true,
+  }
+}

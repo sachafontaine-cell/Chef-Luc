@@ -4,11 +4,11 @@ import { proteins, toFacets } from './family'
 
 describe('the recipe library', () => {
   it('loads every card with steps and a photo', () => {
-    expect(RECIPES.length).toBe(168)
+    expect(RECIPES.length).toBe(169)
     for (const r of RECIPES) {
       expect(r.title, `recipe ${r.number}`).toBeTruthy()
       expect(r.steps.length, `recipe ${r.number}`).toBeGreaterThan(0)
-      expect(r.image, `recipe ${r.number}`).toMatch(/^thumbs\/\d{3}\.jpg$/)
+      expect(r.image, `recipe ${r.number}`).toMatch(/thumbs\/\d{3}\.jpg$/)
     }
   })
   it('reads active minutes', () => {

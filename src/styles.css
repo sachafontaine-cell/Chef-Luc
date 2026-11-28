@@ -238,3 +238,6 @@ a.btn { text-decoration: none; }
 .tonightbar { background: var(--gold-bg); border-color: var(--gold-bg); align-items: center; }
 .card .new { font-size: 17px; background: var(--gold-bg); border-radius: 8px; padding: 6px 8px; }
 .sheet-body > * { flex-shrink: 0; }
+
+.iconbtn.plus { font-size: 30px; font-weight: 400; line-height: 1; }
+.row.wrap { flex-wrap: wrap; }
